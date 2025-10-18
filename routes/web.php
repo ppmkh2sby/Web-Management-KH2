@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AdminPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\WaliDashboardController;
 
 // Halaman umum
 Route::get('/', [FrontController::class, 'index'])->name('home');
@@ -51,4 +52,9 @@ Route::controller(AdminPasswordController::class)->group(function () {
     Route::post('admin/forgot-password', 'sendResetLink')->name('admin_forget_password_submit');
     Route::get('admin/reset-password/{token}', 'showResetForm')->name('admin_reset_password');
     Route::post('admin/reset-password', 'resetPassword')->name('admin_reset_password_submit');
+});
+
+// ==== WALI SANTRI DASHBOARD ====
+Route::middleware(['auth'])->group(function () {
+    Route::get('/wali/dashboard', [WaliDashboardController::class, 'index'])->name('wali.dashboard');
 });

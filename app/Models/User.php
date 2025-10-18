@@ -61,14 +61,20 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Role::class, 'id_role');
     }
 
-    public function anak()
+    public function anakSantri()
     {
-        return $this->hasMany(WaliSantriRelasi::class, 'id_wali');
+        return $this->belongsToMany(User::class, 'wali_santri_relasi', 'id_wali', 'id_santri')
+                    ->withPivot('hubungan')
+                    ->withTimestamps();
     }
 
     public function wali()
     {
-        return $this->hasOne(WaliSantriRelasi::class, 'id_santri');
+        return $this->belongsToMany(User::class, 'wali_santri_relasi', 'id_santri', 'id_wali')
+                    ->withPivot('hubungan')
+                    ->withTimestamps();
     }
+
+    
 
 }
