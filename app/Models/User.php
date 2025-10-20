@@ -31,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'zip',
         'token',
         'status',
+        'kode_unik'
     ];
 
     /**

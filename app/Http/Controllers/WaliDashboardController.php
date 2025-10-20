@@ -12,7 +12,7 @@ class WaliDashboardController extends Controller
         $user = Auth::user();
         
         if ($user->id_role != 5) {
-            return redirect()->route('dashboard')->with('error', 'Akses hanya untuk Wali Santri');
+            return redirect()->route('login')->with('error', 'Akses hanya untuk Wali Santri');
         }
         $anak = $user->anakSantri; 
 

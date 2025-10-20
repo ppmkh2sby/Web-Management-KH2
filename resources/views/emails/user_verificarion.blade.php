@@ -2,22 +2,25 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Verifikasi Akun Anda</title>
+    <title>Verifikasi Akun</title>
 </head>
 <body style="font-family: Arial, sans-serif;">
-    <h2>Halo, {{ $user->name }}!</h2>
-    <p>Terima kasih sudah mendaftar di sistem kami.</p>
-    <p>Silakan klik link di bawah ini untuk memverifikasi akun Anda:</p>
+    <h2>Halo, {{ $user->name }} 👋</h2>
+    <p>Terima kasih telah mendaftar di <strong>Management KH2</strong>.</p>
+    <p>Untuk mengaktifkan akun Anda, klik tautan verifikasi di bawah ini:</p>
 
-    <p>
-        <a href="{{ url('/verify-email/'.$user->verification_token) }}" 
-           style="display:inline-block;padding:10px 20px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;">
-            Verifikasi Sekarang
+    <p style="margin: 20px 0;">
+        <a href="{{ $verificationUrl }}" 
+           style="background-color:#4f46e5;color:white;padding:10px 20px;
+                  border-radius:8px;text-decoration:none;">
+           Verifikasi Akun
         </a>
     </p>
 
-    <p>Jika Anda tidak mendaftar akun ini, abaikan saja email ini.</p>
-    <br>
-    <p>Terima kasih,<br>Tim PPM KH2</p>
+    <p>Jika Anda tidak merasa membuat akun, abaikan email ini.</p>
+    <hr>
+    <p style="font-size:12px;color:#999;">
+        © {{ date('Y') }} Management KH2. Semua hak dilindungi.
+    </p>
 </body>
 </html>
