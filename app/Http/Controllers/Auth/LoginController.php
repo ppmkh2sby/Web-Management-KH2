@@ -15,42 +15,43 @@ class LoginController extends Controller
 
     public function login(Request $request)
     {
-        $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
+        $credentials = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'string'],
         ]);
 
-        $credentials = $request->only('email', 'password');
+        // Regenerate session ID for security
+        $request->session()->regenerate();
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $user = Auth::user();
 
-            // Pastikan akun sudah diverifikasi dan aktif
-            if ($user->status == 0) {
+            // Pastikan email sudah diverifikasi
+            if (is_null($user->email_verified_at)) {
                 Auth::logout();
-                return back()->withErrors(['email' => 'Akun belum diverifikasi, cek email Anda.']);
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'Email Anda belum terverifikasi. Silakan cek email untuk verifikasi.'
+                ])->onlyInput('email');
             }
 
-            // 🔹 Arahkan ke dashboard berdasarkan role
-            switch ($user->id_role) {
-                case 4: // Santri
-                    return redirect()->route('santri.dashboard');
+            $role = strtolower(optional($user->role)->nama_role ?? '');
 
-                case 5: // Wali
-                    return redirect()->route('wali.dashboard');
-
-                case 6: // Degur
-                    return redirect()->route('degur.dashboard');
-
-                case 7: // Pengurus
-                    return redirect()->route('pengurus.dashboard');
-
-                default: // Admin atau lainnya
-                    return redirect()->route('admin_dashboard');
-            }
+            return match ($role) {
+                'santri'   => redirect()->route('santri.dashboard'),
+                'wali'     => redirect()->route('wali.dashboard'),
+                'pengurus' => redirect()->route('pengurus.dashboard'),
+                'degur', 'dewan_guru' => redirect()->route('degur.dashboard'),
+                'admin'    => redirect('/admin/dashboard'),
+                default    => redirect('/'),
+            };
         }
 
-        return back()->withErrors(['email' => 'Email atau password salah.'])->withInput();
+        return back()
+            ->withErrors(['email' => 'Email atau password salah.'])
+            ->onlyInput('email');
     }
 
     public function logout(Request $request)
@@ -58,7 +59,6 @@ class LoginController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
         return redirect()->route('login')->with('success', 'Anda telah logout.');
     }
 }

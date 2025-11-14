@@ -9,11 +9,7 @@ class SantriDashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-
-        if ($user->id_role != 4) {
-            return redirect()->route('login')->with('error', 'Akses hanya untuk Santri.');
-        }
-
+        // Middleware 'role:santri' sudah melindungi
         return view('dashboard.santri', compact('user'));
     }
 }

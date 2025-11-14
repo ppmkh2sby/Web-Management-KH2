@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\WaliSantriRelasi;    
 use Illuminate\Support\Facades\Auth;
 
 class WaliDashboardController extends Controller
@@ -10,12 +9,7 @@ class WaliDashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
-        if ($user->id_role != 5) {
-            return redirect()->route('login')->with('error', 'Akses hanya untuk Wali Santri');
-        }
-        $anak = $user->anakSantri; 
-
+        $anak = $user->anakSantri; // ambil anak terhubung via pivot
         return view('dashboard.wali', compact('anak'));
     }
 }

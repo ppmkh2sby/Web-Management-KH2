@@ -3,12 +3,12 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Enum\Role;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -21,17 +21,10 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'name',
         'email',
-        'photo',
-        'password',
+        'login_code',
         'phone',
-        'address',
-        'country',
-        'state',
-        'city',
-        'zip',
-        'token',
-        'status',
-        'kode_unik'
+        'password',
+        'role',
     ];
 
     /**
@@ -49,33 +42,28 @@ class User extends Authenticatable implements MustVerifyEmail
      *
      * @return array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'role' => \App\Enum\Role::class,
+    ];
 
-    public function role()
-    {
-        return $this->belongsTo(Role::class, 'id_role');
-    }
-
-    public function anakSantri()
-    {
-        return $this->belongsToMany(User::class, 'wali_santri_relasi', 'id_wali', 'id_santri')
-                    ->withPivot('hubungan')
-                    ->withTimestamps();
-    }
-
-    public function wali()
-    {
-        return $this->belongsToMany(User::class, 'wali_santri_relasi', 'id_santri', 'id_wali')
-                    ->withPivot('hubungan')
-                    ->withTimestamps();
+    public function santri(){
+        return $this->hasOne(Santri::class);
     }
 
     
+    public function waliOf(){
+        return $this->belongsToMany(Santri::class, 'santri_wali', 'wali_user_id', 'santri_id')->withTimestamps();
+    }
+
+    public function hasRole(Role|string $role): bool {
+        return $this->role === ($role instanceof Role ? $role : Role::from($role));
+    }
+
+    public function scopeRole($q, Role|string $role)
+    {
+        $val = $role instanceof Role ? $role->value : (string) $role;
+        return $q->where('role', $val);
+    }
 
 }
