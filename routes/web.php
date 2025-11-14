@@ -1,90 +1,78 @@
 <?php
 
+use App\Enum\Role; // <-- penting: pakai namespace yang benar
+use App\Http\Controllers\Auth\RegisteredSantriController;
+use App\Http\Controllers\Auth\RegisteredWaliController;
+use App\Http\Controllers\Auth\RegisteredStaffController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Santri\DashboardController as SantriDashboard;
+use App\Http\Controllers\DashboardController;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\FrontController;
-use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\AdminPasswordController;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\ForgotPasswordController;
-use App\Http\Controllers\SantriDashboardController;
-use App\Http\Controllers\WaliDashboardController;
 
 /*
-|--------------------------------------------------------------------------
-| WEB ROUTES
-|--------------------------------------------------------------------------
-| Struktur routing utama Web Management KH2.
-| Sudah dilengkapi pengaturan role-based redirect dan dashboard.
-|--------------------------------------------------------------------------
+| Landing (/)
 */
-
-// 🌍 HALAMAN UMUM
-Route::get('/', [FrontController::class, 'index'])->name('home');
-Route::get('/about', [FrontController::class, 'about'])->name('about');
-
-
-// 🔐 AUTHENTICATION (WEB)
-Route::controller(LoginController::class)->group(function () {
-    Route::get('login', 'showLoginForm')->name('login');
-    Route::post('login', 'login')->name('login.submit');
-    Route::post('logout', 'logout')->name('logout');
+Route::get('/', function (): RedirectResponse {
+    return auth()->check() ? to_route('dashboard') : to_route('login');
 });
 
-Route::controller(RegisterController::class)->group(function () {
-    Route::get('register', 'showRegisterForm')->name('register');
-    Route::post('register', 'register')->name('register.submit');
-    Route::get('verify-email/{token}', 'verifyEmail')->name('verify.email');
+// ---------- Auth (guest) ----------
+Route::middleware('guest')->group(function () {
+    Route::get('/register/santri', [RegisteredSantriController::class, 'create'])->name('register.santri');
+    Route::post('/register/santri', [RegisteredSantriController::class, 'store']);
+
+    Route::get('/register/wali', [RegisteredWaliController::class, 'create'])->name('register.wali');
+    Route::post('/register/wali', [RegisteredWaliController::class, 'store']);
+
+    Route::get('/register/staff', [RegisteredStaffController::class, 'create'])->name('register.staff');
+    Route::post('/register/staff', [RegisteredStaffController::class, 'store']);
 });
 
-Route::controller(ForgotPasswordController::class)->group(function () {
-    Route::get('forgot-password', 'showLinkRequestForm')->name('password.request');
-    Route::post('forgot-password', 'sendResetLinkEmail')->name('password.email');
-    Route::get('reset-password/{token}', 'showResetForm')->name('password.reset');
-    Route::post('reset-password', 'reset')->name('password.update');
-});
-
-
-// 🧑‍💻 ADMIN ROUTE
-Route::prefix('admin')->group(function () {
-    // Login & Forgot
-    Route::get('/login', [AdminController::class, 'login'])->name('admin_login');
-    Route::post('/login', [AdminController::class, 'login_submit'])->name('admin_login_submit');
-    Route::get('/forget-password', [AdminController::class, 'forget_password'])->name('admin_forget_password');
-    Route::post('/forget-password', [AdminController::class, 'forget_password_submit'])->name('admin_forget_password_submit');
-
-    // Dashboard (middleware admin)
-    Route::middleware('admin')->group(function () {
-        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin_dashboard');
-        Route::get('/logout', [AdminController::class, 'logout'])->name('admin_logout');
-    });
-});
-
-// Reset Password Admin
-Route::controller(AdminPasswordController::class)->group(function () {
-    Route::get('admin/forgot-password', 'showForgotForm')->name('admin_forget_password');
-    Route::post('admin/forgot-password', 'sendResetLink')->name('admin_forget_password_submit');
-    Route::get('admin/reset-password/{token}', 'showResetForm')->name('admin_reset_password');
-    Route::post('admin/reset-password', 'resetPassword')->name('admin_reset_password_submit');
-});
-
-
-// 🏫 DASHBOARD ROLE-BASED (USER WEB)
+// ---------- Authenticated (umum) ----------
 Route::middleware(['auth'])->group(function () {
-    // Santri
-    Route::get('/santri/dashboard', [SantriDashboardController::class, 'index'])->name('santri.dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Wali Santri
-    Route::get('/wali/dashboard', [WaliDashboardController::class, 'index'])->name('wali.dashboard');
+    // Wali
+    Route::middleware('role:wali')->prefix('wali')->name('wali.')->group(function () {
+        Route::get('/anak-saya', function () {
+            $user = auth()->user();
+            $santriList = $user->waliOf()->with('user')->get();
+            return view('wali.anak', compact('santriList'));
+        })->name('anak');
+    });
 
-    // Degur
-    Route::get('/degur/dashboard', function () {
-        return view('dashboard.degur');
-    })->name('degur.dashboard');
-
-    // Pengurus
-    Route::get('/pengurus/dashboard', function () {
-        return view('dashboard.pengurus');
-    })->name('pengurus.dashboard');
+    // Profile
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+// ---------- Admin ----------
+Route::middleware(['auth','role:admin'])
+    ->prefix('admin')->name('admin.')
+    ->group(function () {
+        Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    });
+
+// ---------- Santri ----------
+Route::middleware(['auth','role:santri'])
+    ->prefix('santri')->name('santri.')
+    ->group(function () {
+        Route::get('/home',     [SantriDashboard::class, 'home'])->name('home');
+        Route::get('/profile',  [SantriDashboard::class, 'profile'])->name('profile');
+        Route::get('/setting',  [SantriDashboard::class, 'setting'])->name('setting');
+
+        Route::prefix('data')->name('data.')->group(function () {
+            Route::get('/',                 [SantriDashboard::class, 'dataIndex'])->name('index');
+            Route::get('/presensi',         [SantriDashboard::class, 'presensi'])->name('presensi');
+            Route::get('/progres-keilmuan', [SantriDashboard::class, 'progres'])->name('progres');
+            Route::get('/log-keluar-masuk', [SantriDashboard::class, 'log'])->name('log');
+        });
+
+        // alias: /santri/dashboard -> /santri/home
+        Route::get('/dashboard', fn () => redirect()->route('santri.home'))->name('dashboard');
+    });
+
+require __DIR__.'/auth.php';

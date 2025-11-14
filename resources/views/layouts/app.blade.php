@@ -1,50 +1,37 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Dashboard PPM KH2')</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ config('app.name', 'Management KH2') }}</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="bg-gray-50 font-[Poppins] text-gray-800">
-
-    <!-- SIDEBAR -->
-    <div class="flex min-h-screen">
-        <aside class="w-64 bg-indigo-700 text-white flex flex-col shadow-xl">
-            <div class="p-6 border-b border-indigo-500">
-                <h1 class="text-2xl font-bold">PPM KH2</h1>
-                <p class="text-sm text-indigo-200">Manajemen Santri</p>
-            </div>
-
-            <nav class="flex-1 p-4 space-y-2 text-sm">
-                <a href="{{ route('wali.dashboard') }}" class="block px-4 py-2 rounded-md hover:bg-indigo-600 transition">
-                    🏠 Dashboard
-                </a>
-                <a href="#" class="block px-4 py-2 rounded-md hover:bg-indigo-600 transition">
-                    👦 Data Santri
-                </a>
-                <a href="#" class="block px-4 py-2 rounded-md hover:bg-indigo-600 transition">
-                    📘 Laporan Presensi
-                </a>
-            </nav>
-
-            <div class="p-4 border-t border-indigo-500 text-sm">
-                <form action="{{ route('logout') }}" method="POST">
-                    @csrf
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg transition">
-                        Keluar
-                    </button>
-                </form>
-            </div>
-        </aside>
-
-        <!-- MAIN CONTENT -->
-        <main class="flex-1 p-8 overflow-y-auto">
-            @yield('content')
+<body class="font-sans antialiased bg-slate-50 text-slate-800">
+    <div class="min-h-screen">
+        @include('layouts.navigation')
+        @isset($header)
+            <header class="bg-white/80 backdrop-blur shadow-sm">
+                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                    {{ $header }}
+                </div>
+            </header>
+        @endisset
+        <main>
+            {{ $slot }}
         </main>
+        <footer class="mt-16 border-t bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
+                <p class="text-sm text-slate-500">&copy; {{ now()->year }} {{ config('app.name', 'Management KH2') }}</p>
+                <div class="text-sm text-slate-500">
+                    <a href="{{ url('/') }}" class="hover:text-slate-700">Beranda</a>
+                </div>
+            </div>
+        </footer>
     </div>
-
+    @stack('scripts')
 </body>
 </html>

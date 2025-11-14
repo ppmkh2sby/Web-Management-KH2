@@ -1,128 +1,103 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet" />
-    @vite(['resources/css/app.css', 'resources/js.navbar.js'])
-    <title>Register</title>
-</head>
+<x-guest-layout>
+    <form method="POST" action="{{ route('register') }}" class="space-y-6">
+        @csrf
 
-<body class="h-screen w-screen flex justify-center items-center bg-gray-100 font-[Poppins] overflow-hidden">
-    <div class="container flex w-5/6 h-[90vh] shadow-2xl rounded-3xl bg-white overflow-hidden">
-        <!-- LEFT PAGE -->
-        <div class="left_page w-1/2 relative overflow-hidden rounded-l-3xl"
-            x-data="{ active: 0, images: [
-                '{{ asset('photo/DSC09821.JPG') }}',
-                '{{ asset('photo/DSC09905.JPG') }}',
-                '{{ asset('photo/DSC09936.JPG') }}',
-                '{{ asset('photo/HWP_6626.JPG') }}',
-                '{{ asset('photo/HWP_6653.JPG') }}'
-            ] }"
-            x-init="setInterval(() => active = (active + 1) % images.length, 4000)">
-            
-            <template x-for="(img, index) in images" :key="index">
-                <div class="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-                    :class="active === index ? 'opacity-100' : 'opacity-0'">
-                    <img :src="img" alt="" class="object-cover w-full h-full" />
-                </div>
-            </template>
-
-            <div class="absolute inset-0 bg-gradient-to-tr from-black/60 via-transparent to-indigo-700/50 mix-blend-multiply"></div>
-
-            <div class="absolute bottom-6 left-6 text-white">
-                <h1 class="text-3xl font-bold drop-shadow-lg tracking-wide">OUR MEMORIES</h1>
-                <p class="text-sm text-gray-100 mt-1">Kebersamaan, perjuangan, dan tawa yang tak terlupakan.</p>
-            </div>
-
-            <div class="absolute bottom-6 right-6 flex space-x-2">
-                <template x-for="(img, i) in images" :key="i">
-                    <div class="w-3 h-3 rounded-full transition-all duration-500"
-                        :class="active === i ? 'bg-white scale-110' : 'bg-gray-400 opacity-50'"></div>
-                </template>
-            </div>
+        <div class="text-center">
+            <h1 class="text-xl font-semibold">Buat Akun</h1>
+            <p class="text-sm text-slate-500">Isi data di bawah sesuai peran Anda</p>
         </div>
 
-        <!-- RIGHT PAGE -->
-        <div class="right_page w-1/2 flex justify-center items-center relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-r-3xl">
-            <div class="absolute w-72 h-72 bg-blue-400 opacity-20 blur-3xl rounded-full -top-10 -right-16"></div>
-
-            <!-- 🔹 Card Container -->
-            <div class="relative bg-white/95 backdrop-blur-md border border-gray-200 shadow-2xl shadow-indigo-100 rounded-2xl w-[85%] max-w-md px-10 py-8 flex flex-col justify-between h-[90%] z-10">
-                
-                <!-- 🧭 Bagian Atas -->
-                <div>
-                    <h1 class="font-bold text-gray-800 text-4xl text-center select-none tracking-wide mb-8">Register</h1>
-
-                    @if($errors->any())
-                        <div class="mb-6 text-sm bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded-lg shadow-sm">
-                            <ul class="list-disc list-inside text-left">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-                </div>
-
-                <!-- 📝 Form -->
-                <div class="flex-grow overflow-y-auto px-1">
-                    <form action="{{ route('register.submit') }}" method="POST" class="space-y-4" x-data="{ selectedRole: '' }">
-                        @csrf
-
-                        <input type="text" name="name" placeholder="Nama Lengkap" required class="border p-3 rounded w-full">
-                        <input type="email" name="email" placeholder="Email" required class="border p-3 rounded w-full">
-                        <input type="text" name="phone" placeholder="Nomor Telepon" required class="border p-3 rounded w-full">
-                        <input type="password" name="password" placeholder="Password" required class="border p-3 rounded w-full">
-                        <input type="password" name="password_confirmation" placeholder="Konfirmasi Password" required class="border p-3 rounded w-full">
-
-                        <!-- 🔸 Role + Kode -->
-                        <div class="grid grid-cols-2 gap-3 items-start">
-                            <div>
-                                <select name="id_role" required x-model="selectedRole" class="border p-3 rounded w-full bg-white text-gray-700">
-                                    <option value="" disabled selected>Pilih Role</option>
-                                    <option value="4">Santri</option>
-                                    <option value="5">Wali Santri</option>
-                                    <option value="6">Degur</option>
-                                    <option value="7">Pengurus</option>
-                                </select>
-                            </div>
-                            <div>
-                                <div x-show="selectedRole == 5" x-transition>
-                                    <input type="text" name="kode_anak" placeholder="Kode Anak" class="border p-3 rounded w-full" />
-                                </div>
-                                <div x-show="selectedRole == 6 || selectedRole == 7" x-transition>
-                                    <input type="text" name="secret_code" placeholder="Kode Rahasia" class="border p-3 rounded w-full" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 🔘 Tombol -->
-                        <button type="submit"
-                            class="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-purple-500 hover:to-blue-500 text-white py-2.5 w-full rounded-lg text-[16px] font-medium shadow-md transition duration-300 ease-in-out mt-4">
-                            Register
-                        </button>
-                    </form>
-                </div>
-
-                <!-- 📄 Footer -->
-                <div class="pt-4">
-                    <div class="text-center text-gray-600 text-sm mb-2">
-                        Sudah punya akun?
-                        <a href="{{ route('login') }}" class="text-blue-500 hover:underline font-medium">Log In</a>
-                    </div>
-
-                    <p class="text-gray-400 text-xs text-center leading-relaxed px-4">
-                        Dengan mendaftar, Anda menyetujui 
-                        <a href="#" class="text-blue-400 hover:underline">Syarat</a> dan 
-                        <a href="#" class="text-blue-400 hover:underline">Kebijakan Privasi</a>.
-                    </p>
-                </div>
-            </div>
+        {{-- Nama --}}
+        <div>
+            <x-input-label for="name" :value="__('Nama Lengkap')" />
+            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full"
+                          :value="old('name')" required autofocus autocomplete="name" />
+            <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
-    </div>
-</body>
-</html>
+
+        {{-- Email --}}
+        <div>
+            <x-input-label for="email" :value="__('Email')" />
+            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full"
+                          :value="old('email')" required autocomplete="username" />
+            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        </div>
+
+        {{-- Phone --}}
+        <div>
+            <x-input-label for="phone" :value="__('No. Handphone')" />
+            <x-text-input id="phone" name="phone" type="text" class="mt-1 block w-full"
+                          :value="old('phone')" required placeholder="08xxxx / +62xxx" />
+            <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+        </div>
+
+        {{-- Role --}}
+        <div>
+            <x-input-label for="role" :value="__('Role')" />
+            <select id="role" name="role" class="mt-1 block w-full border-slate-300 rounded-md" required>
+                <option value="" disabled {{ old('role') ? '' : 'selected' }}>-- Pilih Role --</option>
+                <option value="santri"   {{ old('role')==='santri' ? 'selected' : '' }}>Santri</option>
+                <option value="wali"     {{ old('role')==='wali' ? 'selected' : '' }}>Wali Santri</option>
+                <option value="pengurus" {{ old('role')==='pengurus' ? 'selected' : '' }}>Pengurus</option>
+                <option value="degur"    {{ old('role')==='degur' ? 'selected' : '' }}>Dewan Guru</option>
+            </select>
+            <x-input-error :messages="$errors->get('role')" class="mt-2" />
+        </div>
+
+        {{-- Kode Anak (khusus Wali) --}}
+        <div id="field-santri-code" class="hidden">
+            <x-input-label for="santri_code" :value="__('Kode Anak (dari Santri)')" />
+            <x-text-input id="santri_code" name="santri_code" type="text" class="mt-1 block w-full"
+                          :value="old('santri_code')" placeholder="Misal: S-AB12CD34" />
+            <x-input-error :messages="$errors->get('santri_code')" class="mt-2" />
+        </div>
+
+        {{-- Kode Rahasia (khusus Pengurus/Degur) --}}
+        <div id="field-verification-code" class="hidden">
+            <x-input-label for="verification_code" :value="__('Kode Rahasia (dari Admin)')" />
+            <x-text-input id="verification_code" name="verification_code" type="text" class="mt-1 block w-full"
+                          :value="old('verification_code')" placeholder="Masukkan kode rahasia" />
+            <x-input-error :messages="$errors->get('verification_code')" class="mt-2" />
+        </div>
+
+        {{-- Password --}}
+        <div>
+            <x-input-label for="password" :value="__('Password')" />
+            <x-text-input id="password" name="password" type="password" class="mt-1 block w-full" required
+                          autocomplete="new-password" />
+            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+        </div>
+
+        {{-- Konfirmasi --}}
+        <div>
+            <x-input-label for="password_confirmation" :value="__('Konfirmasi Password')" />
+            <x-text-input id="password_confirmation" name="password_confirmation" type="password"
+                          class="mt-1 block w-full" required autocomplete="new-password" />
+        </div>
+
+        <x-primary-button class="w-full justify-center">
+            {{ __('Daftar') }}
+        </x-primary-button>
+
+        <p class="text-center text-sm text-slate-600">
+            Sudah punya akun?
+            <a href="{{ route('login') }}" class="underline">Masuk</a>
+        </p>
+    </form>
+
+    {{-- Script show/hide field berdasar role --}}
+    <script>
+        const roleSel = document.getElementById('role');
+        const fSantri  = document.getElementById('field-santri-code');
+        const fVerif   = document.getElementById('field-verification-code');
+
+        function applyRoleVisibility() {
+            const r = roleSel.value;
+            fSantri.classList.toggle('hidden', !(r === 'wali'));
+            fVerif.classList.toggle('hidden', !(r === 'pengurus' || r === 'degur'));
+        }
+        roleSel.addEventListener('change', applyRoleVisibility);
+        // panggil saat load agar old() ikut terbaca
+        window.addEventListener('DOMContentLoaded', applyRoleVisibility);
+    </script>
+</x-guest-layout>
