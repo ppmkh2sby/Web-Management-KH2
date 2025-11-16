@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enum\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +30,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended($this->redirectPathFor($request->user()));
     }
 
     /**
@@ -43,5 +45,18 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    private function redirectPathFor(?User $user): string
+    {
+        if (! $user) {
+            return route('dashboard');
+        }
+
+        return match ($user->role) {
+            Role::SANTRI => route('santri.home'),
+            Role::WALI => route('wali.anak'),
+            default => route('dashboard'),
+        };
     }
 }

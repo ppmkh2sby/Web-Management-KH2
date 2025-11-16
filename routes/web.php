@@ -1,34 +1,18 @@
 <?php
 
 use App\Enum\Role; // <-- penting: pakai namespace yang benar
-use App\Http\Controllers\Auth\RegisteredSantriController;
-use App\Http\Controllers\Auth\RegisteredWaliController;
-use App\Http\Controllers\Auth\RegisteredStaffController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Santri\DashboardController as SantriDashboard;
 use App\Http\Controllers\DashboardController;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 
 /*
 | Landing (/)
 */
-Route::get('/', function (): RedirectResponse {
-    return auth()->check() ? to_route('dashboard') : to_route('login');
-});
-
-// ---------- Auth (guest) ----------
-Route::middleware('guest')->group(function () {
-    Route::get('/register/santri', [RegisteredSantriController::class, 'create'])->name('register.santri');
-    Route::post('/register/santri', [RegisteredSantriController::class, 'store']);
-
-    Route::get('/register/wali', [RegisteredWaliController::class, 'create'])->name('register.wali');
-    Route::post('/register/wali', [RegisteredWaliController::class, 'store']);
-
-    Route::get('/register/staff', [RegisteredStaffController::class, 'create'])->name('register.staff');
-    Route::post('/register/staff', [RegisteredStaffController::class, 'store']);
-});
+Route::get('/', function () {
+    return view('landing');
+})->name('landing');
 
 // ---------- Authenticated (umum) ----------
 Route::middleware(['auth'])->group(function () {
