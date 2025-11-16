@@ -73,20 +73,106 @@ class DashboardController extends Controller
         $santri = $this->loadSantri();
         $K = $this->q(\App\Models\Kehadiran::class);
         $data = $K ? (clone $K)->where('santri_id',$santri->id)->latest('tanggal')->take(30)->get() : collect();
+
+        if ($data->isEmpty()) {
+            $data = collect([
+                ['tanggal' => Carbon::today()->toDateString(), 'status' => 'hadir', 'keterangan' => 'Pengajian Kitab Ba\'da Subuh'],
+                ['tanggal' => Carbon::yesterday()->toDateString(), 'status' => 'hadir', 'keterangan' => 'Tahfidz Pagi'],
+                ['tanggal' => Carbon::today()->subDays(2)->toDateString(), 'status' => 'izin', 'keterangan' => 'Kontrol kesehatan'],
+                ['tanggal' => Carbon::today()->subDays(3)->toDateString(), 'status' => 'hadir', 'keterangan' => 'Kajian Hadits'],
+                ['tanggal' => Carbon::today()->subDays(4)->toDateString(), 'status' => 'alpa', 'keterangan' => 'Belum mengisi presensi'],
+            ])->map(fn ($row) => (object) $row);
+        }
+
         return view('santri.pages.data.presensi', compact('santri','data'));
     }
 
     public function progres(): View
     {
         $santri = $this->loadSantri();
-        $items = collect(); 
+        $ProgressModel = $this->q(\App\Models\ProgressKeilmuan::class);
+        $items = $ProgressModel
+            ? (clone $ProgressModel)->where('santri_id', $santri->id)->latest()->get()
+            : collect();
+
+        if ($items->isEmpty()) {
+            $items = collect([
+                [
+                    'judul' => 'Hafalan Juz 30',
+                    'target' => 20,
+                    'capaian' => 15,
+                    'satuan' => 'surah',
+                    'level' => 'Intermediate',
+                    'catatan' => 'Fokuskan murajaah pada surah pendek menjelang tasmi\'.',
+                    'pembimbing' => 'Ust. Abdullah',
+                    'terakhir' => Carbon::today()->subDays(1),
+                ],
+                [
+                    'judul' => 'Fiqih Ibadah',
+                    'target' => 8,
+                    'capaian' => 5,
+                    'satuan' => 'bab',
+                    'level' => 'Fundamental',
+                    'catatan' => 'Bab thaharah perlu diulang sebelum ujian lisan.',
+                    'pembimbing' => 'Ust. Farhan',
+                    'terakhir' => Carbon::today()->subDays(2),
+                ],
+                [
+                    'judul' => 'Bahasa Arab',
+                    'target' => 12,
+                    'capaian' => 9,
+                    'satuan' => 'modul',
+                    'level' => 'Advance',
+                    'catatan' => 'Pertahankan setoran harian mufrodat baru.',
+                    'pembimbing' => 'Ustadzah Alia',
+                    'terakhir' => Carbon::today()->subDays(3),
+                ],
+            ])->map(function ($item) {
+                $item['persentase'] = $item['target'] ? round(($item['capaian'] / $item['target']) * 100) : 0;
+                return (object) $item;
+            });
+        }
+
         return view('santri.pages.data.progres', compact('santri','items'));
     }
 
     public function log(): View
     {
         $santri = $this->loadSantri();
-        $logs = collect(); 
+        $LogModel = $this->q(\App\Models\LogKeluarMasuk::class);
+        $logs = $LogModel
+            ? (clone $LogModel)->where('santri_id', $santri->id)->latest('tanggal_pengajuan')->get()
+            : collect();
+
+        if ($logs->isEmpty()) {
+            $logs = collect([
+                [
+                    'tanggal_pengajuan' => Carbon::today()->subDays(1)->toDateString(),
+                    'jenis' => 'Keluar Pondok',
+                    'rentang' => '13.00 - 16.00',
+                    'status' => 'disetujui',
+                    'catatan' => 'Kontrol kesehatan di Puskesmas',
+                    'petugas' => 'Ust. Fathur',
+                ],
+                [
+                    'tanggal_pengajuan' => Carbon::today()->subDays(5)->toDateString(),
+                    'jenis' => 'Cuti Akhir Pekan',
+                    'rentang' => 'Sabtu - Ahad',
+                    'status' => 'proses',
+                    'catatan' => 'Undangan keluarga',
+                    'petugas' => 'Ust. Dani',
+                ],
+                [
+                    'tanggal_pengajuan' => Carbon::today()->subDays(8)->toDateString(),
+                    'jenis' => 'Kembali ke Pondok',
+                    'rentang' => '21.15',
+                    'status' => 'tercatat',
+                    'catatan' => 'Setelah bakti sosial',
+                    'petugas' => 'Satpam Utama',
+                ],
+            ])->map(fn ($row) => (object) $row);
+        }
+
         return view('santri.pages.data.log', compact('santri','logs'));
     }
 }
