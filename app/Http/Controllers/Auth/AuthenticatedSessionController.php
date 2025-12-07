@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Enum\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use App\Support\RedirectPath;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -30,7 +29,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended($this->redirectPathFor($request->user()));
+        return redirect()->intended(RedirectPath::forUser($request->user()));
     }
 
     /**
@@ -47,25 +46,4 @@ class AuthenticatedSessionController extends Controller
         return redirect('/');
     }
 
-    private function redirectPathFor(?User $user): string
-    {
-        if (! $user) {
-            return route('dashboard');
-        }
-
-        if ($user->role === Role::WALI) {
-            $firstChild = $user->waliOf()->orderBy('santris.id')->first();
-
-            if ($firstChild && $firstChild->code) {
-                return route('wali.anak.overview', $firstChild->code);
-            }
-
-            return route('profile.edit');
-        }
-
-        return match ($user->role) {
-            Role::SANTRI => route('santri.home'),
-            default => route('dashboard'),
-        };
-    }
 }

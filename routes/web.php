@@ -1,6 +1,5 @@
 <?php
 
-use App\Enum\Role; // <-- penting: pakai namespace yang benar
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Santri\DashboardController as SantriDashboard;
@@ -40,10 +39,15 @@ Route::middleware(['auth','role:admin'])
     });
 
 // ---------- Santri ----------
-Route::middleware(['auth','role:santri'])
+Route::middleware(['auth'])
     ->prefix('santri')->name('santri.')
     ->group(function () {
-        Route::get('/home',     [SantriDashboard::class, 'home'])->name('home');
+        // Beranda bisa diakses oleh semua role setelah login
+        Route::get('/home', [SantriDashboard::class, 'home'])->name('home');
+        // alias: /santri/dashboard -> /santri/home
+        Route::get('/dashboard', fn () => redirect()->route('santri.home'))->name('dashboard');
+
+        // Semua fitur santri dibuka untuk seluruh role (degur/pengurus/wali juga bisa akses)
         Route::get('/profile',  [SantriDashboard::class, 'profile'])->name('profile');
         Route::get('/setting',  [SantriDashboard::class, 'setting'])->name('setting');
 
@@ -52,9 +56,6 @@ Route::middleware(['auth','role:santri'])
             Route::get('/progres-keilmuan', [SantriDashboard::class, 'progres'])->name('progres');
             Route::get('/log-keluar-masuk', [SantriDashboard::class, 'log'])->name('log');
         });
-
-        // alias: /santri/dashboard -> /santri/home
-        Route::get('/dashboard', fn () => redirect()->route('santri.home'))->name('dashboard');
     });
 
 require __DIR__.'/auth.php';
