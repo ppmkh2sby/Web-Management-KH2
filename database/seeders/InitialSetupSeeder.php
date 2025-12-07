@@ -20,7 +20,7 @@ class InitialSetupSeeder extends Seeder
             ['email' => 'admin@kh2.local'], 
             [
                 'name' => 'Super Admin',
-                'password' => Hash::make('Admin@12345'),
+                'password' => Hash::make('kh2kh2kh2'),
                 'role' => Role::ADMIN,
                 'email_verified_at' => now(),
                 'login_code' => LoginCodeGenerator::generate(Role::ADMIN),

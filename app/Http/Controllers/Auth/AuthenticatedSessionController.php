@@ -53,9 +53,18 @@ class AuthenticatedSessionController extends Controller
             return route('dashboard');
         }
 
+        if ($user->role === Role::WALI) {
+            $firstChild = $user->waliOf()->orderBy('santris.id')->first();
+
+            if ($firstChild && $firstChild->code) {
+                return route('wali.anak.overview', $firstChild->code);
+            }
+
+            return route('profile.edit');
+        }
+
         return match ($user->role) {
             Role::SANTRI => route('santri.home'),
-            Role::WALI => route('wali.anak'),
             default => route('dashboard'),
         };
     }

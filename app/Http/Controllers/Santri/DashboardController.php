@@ -62,12 +62,6 @@ class DashboardController extends Controller
         return view('santri.pages.setting');
     }
 
-    public function dataIndex(): View
-    {
-        $santri = $this->loadSantri();
-        return view('santri.pages.data.index', compact('santri'));
-    }
-
     public function presensi(): View
     {
         $santri = $this->loadSantri();

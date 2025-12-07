@@ -4,15 +4,15 @@ use App\Enum\Role; // <-- penting: pakai namespace yang benar
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Santri\DashboardController as SantriDashboard;
+use App\Http\Controllers\Wali\MonitoringController as WaliMonitoring;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
 | Landing (/)
 */
-Route::get('/', function () {
-    return view('landing');
-})->name('landing');
+Route::view('/landing', 'landing')->name('landing');
+Route::redirect('/', '/landing');
 
 // ---------- Authenticated (umum) ----------
 Route::middleware(['auth'])->group(function () {
@@ -20,11 +20,10 @@ Route::middleware(['auth'])->group(function () {
 
     // Wali
     Route::middleware('role:wali')->prefix('wali')->name('wali.')->group(function () {
-        Route::get('/anak-saya', function () {
-            $user = auth()->user();
-            $santriList = $user->waliOf()->with('user')->get();
-            return view('wali.anak', compact('santriList'));
-        })->name('anak');
+        Route::get('/anak/{santriCode}', [WaliMonitoring::class, 'overview'])->name('anak.overview');
+        Route::get('/anak/{santriCode}/presensi', [WaliMonitoring::class, 'presensi'])->name('anak.presensi');
+        Route::get('/anak/{santriCode}/progres', [WaliMonitoring::class, 'progres'])->name('anak.progres');
+        Route::get('/anak/{santriCode}/log', [WaliMonitoring::class, 'log'])->name('anak.log');
     });
 
     // Profile
@@ -49,7 +48,6 @@ Route::middleware(['auth','role:santri'])
         Route::get('/setting',  [SantriDashboard::class, 'setting'])->name('setting');
 
         Route::prefix('data')->name('data.')->group(function () {
-            Route::get('/',                 [SantriDashboard::class, 'dataIndex'])->name('index');
             Route::get('/presensi',         [SantriDashboard::class, 'presensi'])->name('presensi');
             Route::get('/progres-keilmuan', [SantriDashboard::class, 'progres'])->name('progres');
             Route::get('/log-keluar-masuk', [SantriDashboard::class, 'log'])->name('log');

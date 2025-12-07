@@ -43,33 +43,6 @@
         ['judul' => 'Update fasilitas internet: akses wifi utama tetap aktif hingga pukul 23.00.', 'icon' => 'wifi'],
         ['judul' => 'Submit jurnal harian maksimal pukul 21.00 pada aplikasi ini.', 'icon' => 'notebook-pen'],
     ];
-
-    $summaries = [
-        [
-            'title' => 'Log Presensi Sambung',
-            'value' => '34 pertemuan',
-            'detail' => '3 catatan terlambat',
-            'icon' => 'fingerprint',
-            'link' => route('santri.data.presensi'),
-            'cta' => 'Detail presensi',
-        ],
-        [
-            'title' => 'Log Keluar/Masuk',
-            'value' => '5 izin aktif',
-            'detail' => '2 pengajuan menunggu persetujuan',
-            'icon' => 'door-open',
-            'link' => route('santri.data.log'),
-            'cta' => 'Lihat riwayat',
-        ],
-        [
-            'title' => 'Progress Keilmuan',
-            'value' => '72% target',
-            'detail' => 'Butuh 4 setoran lagi untuk level berikutnya',
-            'icon' => 'graduation-cap',
-            'link' => route('santri.data.progres'),
-            'cta' => 'Cek progres',
-        ],
-    ];
 @endphp
 
 <div class="space-y-6">
@@ -133,31 +106,6 @@
     @endforeach
   </div>
 
-  <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-    <div class="flex items-center justify-between">
-      <div>
-        <h3 class="text-lg font-semibold">Ringkasan Data</h3>
-        <p class="text-sm text-gray-500">Rekap cepat fitur presensi, log keluar/masuk, dan progres keilmuan.</p>
-      </div>
-      <a href="{{ route('santri.data.index') }}" class="text-sm text-emerald-600 hover:text-emerald-700">Lihat semua</a>
-    </div>
-    <div class="mt-5 grid gap-4 md:grid-cols-3">
-      @foreach($summaries as $summary)
-        <div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-          <div class="flex items-center justify-between text-sm text-gray-500">
-            <span>{{ $summary['title'] }}</span>
-            <i data-lucide="{{ $summary['icon'] }}" class="w-4 h-4 text-emerald-500"></i>
-          </div>
-          <p class="mt-3 text-2xl font-semibold text-gray-900">{{ $summary['value'] }}</p>
-          <p class="mt-1 text-xs text-gray-500">{{ $summary['detail'] }}</p>
-          <a href="{{ $summary['link'] }}" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700">
-            {{ $summary['cta'] }}
-            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-          </a>
-        </div>
-      @endforeach
-    </div>
-  </div>
   <div class="grid gap-5 xl:grid-cols-3">
     <div class="xl:col-span-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div class="flex items-center justify-between">

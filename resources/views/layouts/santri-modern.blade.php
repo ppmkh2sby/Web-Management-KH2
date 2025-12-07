@@ -16,6 +16,12 @@
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800 overflow-y-scroll antialiased">
+@php
+  $currentUser = auth()->user();
+  $roleValue = $currentUser?->role?->value;
+  $activeChildCode = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
+  $hasChildSelected = filled($activeChildCode);
+@endphp
   <div class="min-h-screen p-5">
     <div class="grid grid-cols-[260px_1fr] gap-5">
       <aside class="bg-white rounded-3xl shadow-lg border border-gray-100 h-[calc(100vh-40px)] sticky top-5 overflow-hidden">
@@ -43,54 +49,84 @@
         <nav class="p-4 space-y-6 text-sm">
           <div>
             <div class="px-2 text-xs uppercase text-gray-500 mb-2">Menu</div>
-            <ul class="space-y-1">
-              <li>
-                <a href="{{ route('santri.home') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.home') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                  <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-                  <span>Dashboard</span>
-                </a>
-              </li>
-              <li>
-                <a href="{{ route('santri.data.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.index') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                  <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
-                  <span>Ringkasan Data</span>
-                </a>
-              </li>
-              <li>
-                <a href="{{ route('santri.data.presensi') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.presensi') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                  <i data-lucide="users" class="w-5 h-5"></i>
-                  <span>Presensi</span>
-                </a>
-              </li>
-              <li>
-                <a href="{{ route('santri.data.progres') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.progres') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                  <i data-lucide="calendar" class="w-5 h-5"></i>
-                  <span>Progres Keilmuan</span>
-                </a>
-              </li>
-              <li>
-                <a href="{{ route('santri.data.log') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.log') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                  <i data-lucide="clock" class="w-5 h-5"></i>
-                  <span>Log Keluar/Masuk</span>
-                </a>
-              </li>
-            </ul>
+            @if($roleValue === \App\Enum\Role::WALI->value)
+              <ul class="space-y-1">
+                @php
+                  $waliMenu = [
+                    ['label' => 'Dashboard Anak', 'icon' => 'layout-dashboard', 'route' => 'wali.anak.overview'],
+                    ['label' => 'Presensi', 'icon' => 'fingerprint', 'route' => 'wali.anak.presensi'],
+                    ['label' => 'Progress Keilmuan', 'icon' => 'calendar', 'route' => 'wali.anak.progres'],
+                    ['label' => 'Log Keluar/Masuk', 'icon' => 'clock', 'route' => 'wali.anak.log'],
+                  ];
+                @endphp
+                @foreach($waliMenu as $item)
+                  @php
+                    $isActive = request()->routeIs($item['route']);
+                    $stateClasses = $isActive ? 'bg-emerald-50 text-emerald-700 font-medium' : '';
+                    $disabledClasses = $hasChildSelected ? '' : 'opacity-50 cursor-not-allowed pointer-events-none';
+                  @endphp
+                  <li>
+                    <a href="{{ $hasChildSelected ? route($item['route'], $activeChildCode) : '#' }}"
+                       class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ $stateClasses }} {{ $disabledClasses }}">
+                      <i data-lucide="{{ $item['icon'] }}" class="w-5 h-5"></i>
+                      <span>{{ $item['label'] }}</span>
+                    </a>
+                  </li>
+                @endforeach
+              </ul>
+            @else
+              <ul class="space-y-1">
+                <li>
+                  <a href="{{ route('santri.home') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.home') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span>Dashboard</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{{ route('santri.data.presensi') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.presensi') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                    <span>Presensi</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{{ route('santri.data.progres') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.progres') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <i data-lucide="calendar" class="w-5 h-5"></i>
+                    <span>Progres Keilmuan</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{{ route('santri.data.log') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.log') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                    <span>Log Keluar/Masuk</span>
+                  </a>
+                </li>
+              </ul>
+            @endif
           </div>
           <div>
             <div class="px-2 text-xs uppercase text-gray-500 mb-2">General</div>
             <ul class="space-y-1">
-              <li>
-                <a href="{{ route('santri.profile') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.profile') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                  <i data-lucide="user" class="w-5 h-5"></i>
-                  <span>Profil</span>
-                </a>
-              </li>
-              <li>
-                <a href="{{ route('santri.setting') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.setting') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                  <i data-lucide="settings" class="w-5 h-5"></i>
-                  <span>Settings</span>
-                </a>
-              </li>
+              @if($roleValue === \App\Enum\Role::WALI->value)
+                <li>
+                  <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('profile.edit') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <i data-lucide="user" class="w-5 h-5"></i>
+                    <span>Pengaturan Akun</span>
+                  </a>
+                </li>
+              @else
+                <li>
+                  <a href="{{ route('santri.profile') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.profile') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <i data-lucide="user" class="w-5 h-5"></i>
+                    <span>Profil</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{{ route('santri.setting') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.setting') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                    <span>Settings</span>
+                  </a>
+                </li>
+              @endif
               <li>
                 <form method="POST" action="{{ route('logout') }}">@csrf
                   <button class="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 text-left">

@@ -17,7 +17,7 @@
         <p class="text-sm text-gray-500">Ringkasan Progres</p>
         <h2 class="text-2xl font-semibold text-gray-900">Pantau setiap modul pembelajaran</h2>
       </div>
-      <a href="{{ route('santri.data.index') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:text-gray-800">
+      <a href="{{ route('santri.home') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:text-gray-800">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali
       </a>
     </div>

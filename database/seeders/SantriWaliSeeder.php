@@ -114,6 +114,35 @@ class SantriWaliSeeder extends Seeder
                 ]
             );
         }
+
+        $staffGroups = [
+            [
+                'role' => Role::DEWAN_GURU,
+                'type' => 'degur',
+                'members' => [
+                    ['code' => '0235499001', 'name' => 'Amir'],
+                    ['code' => '0235499002', 'name' => 'Anton'],
+                    ['code' => '0235499003', 'name' => 'Ridho'],
+                ],
+            ],
+            [
+                'role' => Role::PENGURUS,
+                'type' => 'pengurus',
+                'members' => [
+                    ['code' => '0218354001', 'name' => 'Saiful'],
+                    ['code' => '0218354002', 'name' => 'Hiru'],
+                    ['code' => '0218354003', 'name' => 'Angga'],
+                    ['code' => '0218354004', 'name' => 'Avan'],
+                    ['code' => '0218354005', 'name' => 'Abdurrahman'],
+                ],
+            ],
+        ];
+
+        foreach ($staffGroups as $group) {
+            foreach ($group['members'] as $member) {
+                $this->upsertUser($member, $group['role'], $passwordHash, $group['type']);
+            }
+        }
     }
 
     private function upsertUser(array $profile, Role $role, string $passwordHash, string $type): User
