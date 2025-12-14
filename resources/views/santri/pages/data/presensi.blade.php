@@ -8,6 +8,7 @@
         'izin'  => 'bg-amber-100 text-amber-700',
         'alpa'  => 'bg-rose-100 text-rose-700',
     ];
+    $statusOptions = \App\Models\Kehadiran::STATUSES ?? ['hadir','izin','alpa'];
     $totalPertemuan = $data->count();
     $hadir = $data->where('status','hadir')->count();
     $izin = $data->where('status','izin')->count();
@@ -18,6 +19,143 @@
 @endphp
 
 <div class="space-y-6">
+  @if(session('success'))
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm">
+      {{ session('success') }}
+    </div>
+  @endif
+  @if ($errors->any())
+    <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800 text-sm space-y-1">
+      @foreach ($errors->all() as $error)
+        <div>{{ $error }}</div>
+      @endforeach
+    </div>
+  @endif
+
+  @if($isKetertiban)
+  <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm text-gray-500">Panel Tim Ketertiban</p>
+        <h3 class="text-lg font-semibold text-gray-900">Absen & kelola presensi santri</h3>
+      </div>
+      <span class="text-xs text-gray-500">Akses khusus anggota tim Ketertiban</span>
+    </div>
+
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="font-semibold text-gray-800">Absen cepat</h4>
+          <span class="text-xs text-gray-500">Tanggal: {{ now()->translatedFormat('d M Y') }}</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-500">
+                <th class="py-2">Santri</th>
+                <th class="py-2">Tim</th>
+                <th class="py-2 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($santriList as $row)
+                <tr class="border-t border-gray-100">
+                  <td class="py-2">
+                    <div class="font-semibold text-gray-900">{{ $row->nama_lengkap }}</div>
+                    <div class="text-xs text-gray-500">Kode: {{ $row->code }}</div>
+                  </td>
+                  <td class="py-2 text-xs">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-gray-700 border border-gray-200">
+                      <i data-lucide="shield-check" class="w-3 h-3"></i> {{ $row->tim ?? '-' }}
+                    </span>
+                  </td>
+                  <td class="py-2">
+                    <div class="flex justify-end gap-2">
+                      @foreach($statusOptions as $option)
+                        <form method="POST" action="{{ route('santri.ketertiban.presensi.store') }}" class="inline">
+                          @csrf
+                          <input type="hidden" name="santri_id" value="{{ $row->id }}">
+                          <input type="hidden" name="tanggal" value="{{ now()->toDateString() }}">
+                          <input type="hidden" name="kegiatan" value="Presensi harian">
+                          <button type="submit" name="status" value="{{ $option }}" class="rounded-xl px-3 py-1.5 text-xs font-semibold border border-gray-200 bg-white hover:border-emerald-300 hover:text-emerald-700">
+                            {{ ucfirst($option) }}
+                          </button>
+                        </form>
+                      @endforeach
+                    </div>
+                  </td>
+                </tr>
+              @empty
+                <tr><td colspan="3" class="py-3 text-center text-gray-500">Belum ada data santri.</td></tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="font-semibold text-gray-800">Edit / hapus catatan</h4>
+          <span class="text-xs text-gray-500">60 catatan terbaru</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs sm:text-sm">
+            <thead>
+              <tr class="text-left text-gray-500">
+                <th class="py-2">Tanggal</th>
+                <th class="py-2">Santri</th>
+                <th class="py-2">Status</th>
+                <th class="py-2">Keterangan</th>
+                <th class="py-2 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="align-top">
+              @forelse($managedKehadiran as $row)
+                @php
+                  $tanggalValue = \Illuminate\Support\Carbon::parse($row->tanggal)->toDateString();
+                  $formId = 'update-kehadiran-'.$row->id;
+                @endphp
+                <tr class="border-t border-gray-100">
+                  <td class="py-2 pr-2">
+                      <input form="{{ $formId }}" type="date" name="tanggal" value="{{ $tanggalValue }}" class="rounded-lg border-gray-200 text-xs sm:text-sm">
+                  </td>
+                  <td class="py-2 pr-2 text-gray-800 font-semibold">{{ $row->santri->nama_lengkap ?? '-' }}</td>
+                  <td class="py-2 pr-2">
+                      <select form="{{ $formId }}" name="status" class="rounded-lg border-gray-200 text-xs sm:text-sm">
+                        @foreach($statusOptions as $option)
+                          <option value="{{ $option }}" @selected($row->status === $option)> {{ ucfirst($option) }} </option>
+                        @endforeach
+                      </select>
+                  </td>
+                  <td class="py-2 pr-2">
+                      <input form="{{ $formId }}" type="text" name="keterangan" value="{{ $row->keterangan ?? '' }}" placeholder="Keterangan" class="w-full rounded-lg border-gray-200 text-xs sm:text-sm" />
+                  </td>
+                  <td class="py-2 text-right">
+                      <div class="flex justify-end gap-2">
+                        <form id="{{ $formId }}" method="POST" action="{{ route('santri.ketertiban.presensi.update', $row) }}">
+                          @csrf
+                          @method('PATCH')
+                        </form>
+                        <button type="submit" form="{{ $formId }}" class="rounded-lg bg-emerald-600 px-3 py-1 text-white text-xs sm:text-sm hover:bg-emerald-700">Simpan</button>
+                        <form method="POST" action="{{ route('santri.ketertiban.presensi.destroy', $row) }}">
+                          @csrf
+                          @method('DELETE')
+                          <button type="submit" class="rounded-lg border border-rose-200 px-3 py-1 text-rose-700 text-xs sm:text-sm hover:bg-rose-50" onclick="return confirm('Hapus catatan presensi ini?')">Hapus</button>
+                        </form>
+                      </div>
+                  </td>
+                </tr>
+              @empty
+                <tr><td colspan="5" class="py-3 text-center text-gray-500">Belum ada catatan kehadiran.</td></tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  @endif
+
   <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>

@@ -7,7 +7,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Enum\Role;
+use App\Models\Santri;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $email
+ * @property string|null $phone
+ * @property Role $role
+ * @property \Illuminate\Support\Carbon|null $email_verified_at
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -44,7 +53,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'role' => \App\Enum\Role::class,
+        'role' => Role::class,
     ];
 
     public function santri(){
@@ -54,6 +63,29 @@ class User extends Authenticatable
     
     public function waliOf(){
         return $this->belongsToMany(Santri::class, 'santri_wali', 'wali_user_id', 'santri_id')->withTimestamps();
+    }
+
+    /**
+     * Cek apakah santri ini anggota tim Ketertiban.
+     */
+    public function isKetertiban(): bool
+    {
+        if ($this->role !== Role::SANTRI) {
+            return false;
+        }
+
+        $tim = trim((string) ($this->santri?->tim ?? ''));
+
+        if ($tim === '') {
+            // Fallback to direct lookup if relasi belum termuat
+            $tim = trim((string) 
+                
+                
+                optional(Santri::where('user_id', $this->id)->first())->tim
+            );
+        }
+
+        return strcasecmp($tim, 'ketertiban') === 0;
     }
 
     public function hasRole(Role|string $role): bool {

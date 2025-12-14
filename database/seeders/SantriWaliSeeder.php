@@ -18,6 +18,26 @@ class SantriWaliSeeder extends Seeder
      */
     public function run(): void
     {
+        $timByName = [
+            'Alwida Rahmat' => 'Ketertiban',
+            'Maestro Rafa Agniya' => 'Ketertiban',
+            'Syahdinda Sherlyta Laura' => 'Ketertiban',
+            'Zaky Afifi Arif' => 'Keilmuan',
+            'Cherfine An-Nisaul Auliya Ulla' => 'Keilmuan',
+            'Muhammad Farizky Alfath Muhardian Putra' => 'Keilmuan',
+            'Renata Keysha Azalia' => 'Acara',
+            'Ayesha Nayyara Putri Wuryadi' => 'Acara',
+            'Keisha Zafif Fahrezi' => 'Acara',
+            'Maritza Dara Athifa' => 'Sekben',
+            'Zahra Suciana Tri Amma Maretha' => 'Sekben',
+            "Fahmi Rosyidin Al'Ulya" => 'Sekben',
+            'Deven Kartika Wijaya' => 'Kebersihan',
+            'Muhammad Setyo Arfan Ibrahim' => 'ukppt',
+            'Muhammad Farrel Al-Aqso' => 'ukppt',
+            'Azzahra Jamalullaily Mafaza' => 'ukppt',
+            'Rara Arimbi Gita Atmodjo' => 'ph',
+        ];
+
         $entries = [
             [
                 'santri' => ['code' => '022424001', 'name' => 'Alwida Rahmat'],
@@ -94,12 +114,14 @@ class SantriWaliSeeder extends Seeder
         foreach ($entries as $entry) {
             $santriUser = $this->upsertUser($entry['santri'], Role::SANTRI, $passwordHash, 'santri');
             $waliUser   = $this->upsertUser($entry['wali'], Role::WALI, $passwordHash, 'wali');
+            $tim        = $timByName[$entry['santri']['name']] ?? null;
 
             $santri = Santri::updateOrCreate(
                 ['code' => $entry['santri']['code']],
                 [
                     'user_id' => $santriUser->id,
                     'nama_lengkap' => $entry['santri']['name'],
+                    'tim' => $tim,
                 ]
             );
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Santri;
 use App\Enum\Role;
 use App\Http\Controllers\Controller;
 use App\Models\Santri;
+use App\Models\Kehadiran;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -14,9 +15,10 @@ class DashboardController extends Controller
 {
     protected function loadSantri()
     {
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         $santri = Santri::with(['kelas','walis','user'])
-            ->where('user_id', $user?->id)
+            ->where('user_id', Auth::id())
             ->first();
 
         if ($santri) {
@@ -47,6 +49,7 @@ class DashboardController extends Controller
 
     public function home(): View
     {
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         $isSantri = $user && $user->role === Role::SANTRI;
 
@@ -55,19 +58,19 @@ class DashboardController extends Controller
         $today  = Carbon::today();
 
         // ---- Kehadiran (aman jika model tidak ada atau user bukan santri)
-        $K = $this->q(\App\Models\Kehadiran::class);
+        $K = $this->q(Kehadiran::class);
         $hadir = $K && $santriId ? (clone $K)->where('santri_id', $santriId)->whereMonth('tanggal', now()->month)->where('status','hadir')->count() : 0;
         $izin  = $K && $santriId ? (clone $K)->where('santri_id', $santriId)->whereMonth('tanggal', now()->month)->where('status','izin')->count()  : 0;
         $alpa  = $K && $santriId ? (clone $K)->where('santri_id', $santriId)->whereMonth('tanggal', now()->month)->where('status','alpa')->count()  : 0;
 
         // ---- Jadwal hari ini
-        $J = $this->q(\App\Models\JadwalPelajaran::class);
+        $J = $this->q('App\\Models\\JadwalPelajaran');
         $jadwalHariIni = $J
             ? (clone $J)->with('mapel','guru')->where('kelas_id', optional($santri?->kelas)->id)->whereDate('tanggal', $today)->orderBy('jam_mulai')->get()
             : collect(); // fallback: koleksi kosong
 
         // ---- Pengumuman terbaru (bisa dibaca semua role)
-        $P = $this->q(\App\Models\Pengumuman::class);
+        $P = $this->q('App\\Models\\Pengumuman');
         $pengumuman = $P ? (clone $P)->latest()->take(4)->get() : collect();
 
         $emailVerified = !is_null(Auth::user()->email_verified_at);
@@ -91,8 +94,20 @@ class DashboardController extends Controller
     public function presensi(): View
     {
         $santri = $this->loadSantri();
-        $K = $this->q(\App\Models\Kehadiran::class);
+        $K = $this->q(Kehadiran::class);
         $data = $K && $santri?->id ? (clone $K)->where('santri_id',$santri->id)->latest('tanggal')->take(30)->get() : collect();
+
+        $isKetertiban = auth()->user()?->isKetertiban()
+            || (strcasecmp(trim((string)($santri?->tim ?? '')), 'ketertiban') === 0);
+        $santriList = collect();
+        $managedKehadiran = collect();
+
+        if ($isKetertiban) {
+            $santriList = Santri::orderBy('nama_lengkap')->get(['id', 'nama_lengkap', 'code', 'tim']);
+            $managedKehadiran = $K
+                ? (clone $K)->with('santri')->latest('tanggal')->take(60)->get()
+                : collect();
+        }
 
         if ($data->isEmpty()) {
             $data = collect([
@@ -104,7 +119,7 @@ class DashboardController extends Controller
             ])->map(fn ($row) => (object) $row);
         }
 
-        return view('santri.pages.data.presensi', compact('santri','data'));
+        return view('santri.pages.data.presensi', compact('santri','data','isKetertiban','santriList','managedKehadiran'));
     }
 
     public function progres(): View

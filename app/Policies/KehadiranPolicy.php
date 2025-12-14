@@ -17,21 +17,21 @@ class KehadiranPolicy
 
     public function view(User $user, Kehadiran $kehadiran): bool
     {
-        return $this->canViewSantriRecord($user, $kehadiran->santri_id);
+        return $this->canViewSantriRecord($user, (int) $kehadiran->santri_id);
     }
 
     public function create(User $user): bool
     {
-        return $this->isStaff($user);
+        return $this->isStaff($user) || $user->isKetertiban();
     }
 
     public function update(User $user, Kehadiran $kehadiran): bool
     {
-        return $this->isStaff($user);
+        return $this->isStaff($user) || $user->isKetertiban();
     }
 
     public function delete(User $user, Kehadiran $kehadiran): bool
     {
-        return $this->isStaff($user);
+        return $this->isStaff($user) || $user->isKetertiban();
     }
 }

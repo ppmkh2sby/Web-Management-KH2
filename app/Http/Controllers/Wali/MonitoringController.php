@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Wali;
 
 use App\Http\Controllers\Controller;
+use App\Models\Kehadiran;
 use App\Models\Santri;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -40,7 +41,7 @@ class MonitoringController extends Controller
             ->where('santris.code', $santriCode)
             ->first();
 
-        abort_unless($santri, 404);
+        abort_if(! $santri, 404);
 
         return $santri;
     }
@@ -58,17 +59,17 @@ class MonitoringController extends Controller
         $santri = $this->loadSantri($santriCode);
         $today = Carbon::today();
 
-        $K = $this->q(\App\Models\Kehadiran::class);
+        $K = $this->q(Kehadiran::class);
         $hadir = $K ? (clone $K)->where('santri_id', $santri->id)->whereMonth('tanggal', now()->month)->where('status', 'hadir')->count() : 0;
         $izin = $K ? (clone $K)->where('santri_id', $santri->id)->whereMonth('tanggal', now()->month)->where('status', 'izin')->count() : 0;
         $alpa = $K ? (clone $K)->where('santri_id', $santri->id)->whereMonth('tanggal', now()->month)->where('status', 'alpa')->count() : 0;
 
-        $J = $this->q(\App\Models\JadwalPelajaran::class);
+        $J = $this->q('App\\Models\\JadwalPelajaran');
         $jadwalHariIni = $J
             ? (clone $J)->with(['mapel', 'guru'])->where('kelas_id', optional($santri->kelas)->id)->whereDate('tanggal', $today)->orderBy('jam_mulai')->get()
             : collect();
 
-        $P = $this->q(\App\Models\Pengumuman::class);
+        $P = $this->q('App\\Models\\Pengumuman');
         $pengumuman = $P ? (clone $P)->latest()->take(4)->get() : collect();
 
         $emailVerified = ! is_null(Auth::user()->email_verified_at);
@@ -115,7 +116,7 @@ class MonitoringController extends Controller
 
     private function fetchKehadiran(Santri $santri): Collection
     {
-        $K = $this->q(\App\Models\Kehadiran::class);
+        $K = $this->q(Kehadiran::class);
 
         if ($K) {
             return (clone $K)

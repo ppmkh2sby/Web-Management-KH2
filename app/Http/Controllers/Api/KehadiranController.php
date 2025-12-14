@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Enum\Role;
 use App\Http\Requests\StoreKehadiranRequest;
 use App\Http\Requests\UpdateKehadiranRequest;
 use App\Models\Kehadiran;
@@ -15,6 +16,10 @@ class KehadiranController extends Controller
     {
         $this->authorize('viewAny', Kehadiran::class);
 
+        $user = $request->user();
+        $isStaff = $user && ($user->role === Role::ADMIN || in_array($user->role?->value, Role::staff(), true));
+        $isKetertiban = $user?->isKetertiban() ?? false;
+
         $query = Kehadiran::query()
             ->with('santri.user')
             ->when($request->filled('santri_id'), fn ($q) => $q->where('santri_id', $request->integer('santri_id')))
@@ -25,6 +30,16 @@ class KehadiranController extends Controller
                     $q->where('santri_id', $santri->id);
                 }
             });
+
+        // Batasi akses data untuk non-staff & non-ketertiban
+        if (!$isStaff && !$isKetertiban && $user) {
+            if ($user->role === Role::SANTRI && $user->santri) {
+                $query->where('santri_id', $user->santri->id);
+            } elseif ($user->role === Role::WALI) {
+                $santriIds = $user->waliOf()->pluck('santris.id');
+                $query->whereIn('santri_id', $santriIds);
+            }
+        }
 
         return response()->json(
             $query->orderByDesc('tanggal')->paginate($request->integer('per_page', 15))

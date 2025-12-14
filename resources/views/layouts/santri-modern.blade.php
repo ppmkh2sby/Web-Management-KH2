@@ -19,6 +19,7 @@
 @php
   $currentUser = auth()->user();
   $roleValue = $currentUser?->role?->value;
+  $isKetertiban = $currentUser?->isKetertiban();
   $activeChildCode = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
   $hasChildSelected = filled($activeChildCode);
 @endphp
@@ -83,9 +84,9 @@
                   </a>
                 </li>
                 <li>
-                  <a href="{{ route('santri.data.presensi') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.presensi') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                    <a href="{{ route('santri.presensi.index', ['mode' => $isKetertiban ? 'input' : 'mine']) }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.presensi.*') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
                     <i data-lucide="users" class="w-5 h-5"></i>
-                    <span>Presensi</span>
+                    <span>{{ $isKetertiban ? 'Manajemen Presensi' : 'Presensi Saya' }} @if($isKetertiban)<span class="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Ketertiban</span>@endif</span>
                   </a>
                 </li>
                 <li>

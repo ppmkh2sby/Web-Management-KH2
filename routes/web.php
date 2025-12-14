@@ -3,7 +3,9 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Santri\DashboardController as SantriDashboard;
+use App\Http\Controllers\Santri\PresensiController as SantriPresensiController;
 use App\Http\Controllers\Wali\MonitoringController as WaliMonitoring;
+use App\Http\Controllers\Ketertiban\KehadiranController as KetertibanKehadiranController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +57,10 @@ Route::middleware(['auth'])
             Route::get('/presensi',         [SantriDashboard::class, 'presensi'])->name('presensi');
             Route::get('/progres-keilmuan', [SantriDashboard::class, 'progres'])->name('progres');
             Route::get('/log-keluar-masuk', [SantriDashboard::class, 'log'])->name('log');
+        });
+
+        Route::middleware('role:santri')->group(function () {
+            Route::resource('presensi', SantriPresensiController::class)->names('presensi')->only(['index','show','store','update','destroy']);
         });
     });
 
