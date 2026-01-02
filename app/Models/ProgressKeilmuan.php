@@ -10,6 +10,9 @@ class ProgressKeilmuan extends Model
 {
     use HasFactory;
 
+    public const LEVEL_QURAN = 'al-quran';
+    public const LEVEL_HADITS = 'al-hadits';
+
     protected $fillable = [
         'santri_id',
         'judul',

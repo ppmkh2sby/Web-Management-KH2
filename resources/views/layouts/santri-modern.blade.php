@@ -22,11 +22,27 @@
   $isKetertiban = $currentUser?->isKetertiban();
   $activeChildCode = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
   $hasChildSelected = filled($activeChildCode);
+  $santriTeam = null;
+
+  if ($roleValue === \App\Enum\Role::SANTRI->value) {
+    // Ambil tim dari relasi santri atau fallback by user_id
+    $santriTeam = trim((string) ($currentUser?->santri?->tim ?? ''));
+    if ($santriTeam === '') {
+      $santriTeam = trim((string) optional(\App\Models\Santri::where('user_id', $currentUser?->id)->first())->tim ?? '');
+    }
+  } elseif ($roleValue === \App\Enum\Role::WALI->value && $hasChildSelected) {
+    // Jika wali memilih santri tertentu, ambil tim santri tersebut via code
+    $santriTeam = trim((string) optional(\App\Models\Santri::where('code', $activeChildCode)->first())->tim ?? '');
+  }
 @endphp
   <div class="min-h-screen p-5">
-    <div class="grid grid-cols-[260px_1fr] gap-5">
-      <aside class="bg-white rounded-3xl shadow-lg border border-gray-100 h-[calc(100vh-40px)] sticky top-5 overflow-hidden">
-        <div class="px-5 pt-6 pb-4 border-b">
+    <div class="grid grid-cols-[280px_1fr] gap-5">
+      <aside class="bg-white rounded-3xl shadow-lg border border-gray-100 h-[calc(100vh-40px)] sticky top-5 overflow-hidden flex flex-col"
+             x-data="{ 
+               presensiOpen: {{ request()->routeIs('santri.presensi.*') ? 'true' : 'false' }},
+               profileMenuOpen: false
+             }">
+        <div class="px-6 py-5 border-b border-gray-100">
           @php
             $logoCandidates = [
               'assets/images/logo-ppm.png',
@@ -38,19 +54,24 @@
               if (file_exists(public_path($c))) { $logoRel = $c; break; }
             }
           @endphp
-          <a href="{{ route('dashboard') }}" class="flex items-center gap-3 group">
+          <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 group">
             @if($logoRel)
-              <img class="h-9 w-9 object-contain" src="{{ asset($logoRel) }}" alt="PPM KH2">
+              <img class="h-8 w-8 object-contain" src="{{ asset($logoRel) }}" alt="PPM KH2">
             @else
-              <i data-lucide="shield" class="w-7 h-7 text-emerald-600"></i>
+              <i data-lucide="shield" class="w-8 h-8 text-emerald-600"></i>
             @endif
-            <span class="font-semibold group-hover:text-emerald-700">PPM KH2</span>
+            <span class="text-base font-semibold text-gray-900 group-hover:text-emerald-700">PPM Khoirul Huda 2</span>
           </a>
         </div>
-        <nav class="p-4 space-y-6 text-sm">
-          <div>
-            <div class="px-2 text-xs uppercase text-gray-500 mb-2">Menu</div>
-            @if($roleValue === \App\Enum\Role::WALI->value)
+        <nav class="flex-1 px-5 py-5 space-y-1 text-sm overflow-y-auto">
+          <div class="mb-4">
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="search" placeholder="Search"
+                     class="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm placeholder:text-gray-400 focus:ring-1 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all" />
+            </div>
+          </div>
+          @if($roleValue === \App\Enum\Role::WALI->value)
               <ul class="space-y-1">
                 @php
                   $waliMenu = [
@@ -76,94 +97,106 @@
                 @endforeach
               </ul>
             @else
-              <ul class="space-y-1">
+              <ul class="space-y-1 text-gray-700">
                 <li>
-                  <a href="{{ route('santri.home') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.home') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                  <a href="{{ route('santri.home') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.home') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
                     <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
                     <span>Dashboard</span>
                   </a>
                 </li>
                 <li>
-                    <a href="{{ route('santri.presensi.index', ['mode' => $isKetertiban ? 'input' : 'mine']) }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.presensi.*') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                    <i data-lucide="users" class="w-5 h-5"></i>
-                    <span>{{ $isKetertiban ? 'Manajemen Presensi' : 'Presensi Saya' }} @if($isKetertiban)<span class="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Ketertiban</span>@endif</span>
+                  <button type="button"
+                          @click="presensiOpen = !presensiOpen"
+                          class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.presensi.*') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
+                    <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                    <span class="flex-1 text-left">Presensi</span>
+                    <i :class="presensiOpen ? 'rotate-180' : ''" data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"></i>
+                  </button>
+                  <div x-show="presensiOpen" x-transition class="pl-12 pr-4 pt-1 pb-1 space-y-0.5">
+                    <a href="{{ route('santri.presensi.index', ['mode' => 'mine']) }}"
+                       class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'mine'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                      Presensi Saya
+                    </a>
+                    <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}"
+                       class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                      Presensi Tim
+                    </a>
+                  </div>
+                </li>
+                <li>
+                  <a href="{{ route('santri.data.progres') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.data.progres') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                    <span>Progress Keilmuan</span>
                   </a>
                 </li>
                 <li>
-                  <a href="{{ route('santri.data.progres') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.progres') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                    <i data-lucide="calendar" class="w-5 h-5"></i>
-                    <span>Progres Keilmuan</span>
-                  </a>
-                </li>
-                <li>
-                  <a href="{{ route('santri.data.log') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.data.log') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
+                  <a href="{{ route('santri.data.log') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.data.log') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
                     <i data-lucide="clock" class="w-5 h-5"></i>
                     <span>Log Keluar/Masuk</span>
                   </a>
                 </li>
               </ul>
             @endif
-          </div>
-          <div>
-            <div class="px-2 text-xs uppercase text-gray-500 mb-2">General</div>
-            <ul class="space-y-1">
-              @if($roleValue === \App\Enum\Role::WALI->value)
-                <li>
-                  <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('profile.edit') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                    <i data-lucide="user" class="w-5 h-5"></i>
-                    <span>Pengaturan Akun</span>
-                  </a>
-                </li>
-              @else
-                <li>
-                  <a href="{{ route('santri.profile') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.profile') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                    <i data-lucide="user" class="w-5 h-5"></i>
-                    <span>Profil</span>
-                  </a>
-                </li>
-                <li>
-                  <a href="{{ route('santri.setting') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 {{ request()->routeIs('santri.setting') ? 'bg-emerald-50 text-emerald-700 font-medium' : '' }}">
-                    <i data-lucide="settings" class="w-5 h-5"></i>
-                    <span>Settings</span>
-                  </a>
-                </li>
-              @endif
-              <li>
-                <form method="POST" action="{{ route('logout') }}">@csrf
-                  <button class="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-emerald-50 text-left">
-                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                    <span>Logout</span>
-                  </button>
-                </form>
-              </li>
-            </ul>
-          </div>
-          <div class="mt-4 p-3 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white">
-            <div class="text-xs opacity-80">Download App</div>
-            <div class="mt-1 font-semibold">Dapatkan kemudahan presensi</div>
-            <a href="#" class="mt-3 inline-flex items-center gap-2 text-xs bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1">
-              <i data-lucide="download" class="w-4 h-4"></i> Download
-            </a>
-          </div>
         </nav>
-      </aside>
-
-      <section class="space-y-4">
-        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-3 flex items-center justify-between">
-          <div class="flex items-center gap-3 flex-1">
-            <div class="relative flex-1 max-w-xl">
-              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-              <input type="text" placeholder="Cari tugas/fitur..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        
+        <div class="mt-auto border-t border-gray-100 px-5 py-4 space-y-3">
+          <a href="#" class="flex items-center justify-between px-4 py-2.5 rounded-lg hover:bg-gray-50 text-gray-700">
+            <div class="flex items-center gap-3">
+              <i data-lucide="bell" class="w-5 h-5"></i>
+              <span class="text-sm">Notifikasi</span>
+            </div>
+            <span class="text-xs font-semibold bg-gray-200 text-gray-700 rounded-full px-2 py-0.5">10</span>
+          </a>
+          
+          <div class="relative" x-data="{ open: false }" @click.away="open = false">
+            <div class="px-3 py-3 rounded-xl bg-gray-50 flex items-center gap-3">
+              <div class="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
+                {{ strtoupper(substr($currentUser?->name ?? 'U', 0, 1)) }}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold leading-tight text-gray-900 truncate">{{ $currentUser?->name ?? 'User' }}</div>
+                <div class="text-xs text-gray-500">
+                  Tim: {{ $santriTeam !== null && $santriTeam !== '' ? $santriTeam : '-' }}
+                </div>
+              </div>
+              <button @click="open = !open" class="text-gray-500 hover:text-gray-700">
+                <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+              </button>
+            </div>
+            
+            {{-- Dropdown Menu --}}
+            <div x-show="open" 
+                 x-transition:enter="transition ease-out duration-100"
+                 x-transition:enter-start="transform opacity-0 scale-95"
+                 x-transition:enter-end="transform opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-75"
+                 x-transition:leave-start="transform opacity-100 scale-100"
+                 x-transition:leave-end="transform opacity-0 scale-95"
+                 class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
+                 style="display: none;">
+              <a href="{{ route('santri.profile') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                <i data-lucide="user" class="w-4 h-4"></i>
+                <span>Profil</span>
+              </a>
+              <a href="{{ route('santri.setting') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+                <span>Pengaturan</span>
+              </a>
+              <div class="h-px bg-gray-200 my-1"></div>
+              <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                  <i data-lucide="log-out" class="w-4 h-4"></i>
+                  <span>Sign out</span>
+                </button>
+              </form>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button class="p-2 rounded-xl hover:bg-gray-100"><i data-lucide="bell" class="w-5 h-5"></i></button>
-            <button class="p-2 rounded-xl hover:bg-gray-100"><i data-lucide="inbox" class="w-5 h-5"></i></button>
-            <div class="h-8 w-8 rounded-full bg-gray-200 grid place-items-center text-xs font-medium">{{ strtoupper(substr(auth()->user()->name ?? 'U',0,1)) }}</div>
-          </div>
         </div>
+      </aside>
 
-        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-4">
+      <section>
+        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-5">
           @yield('content')
         </div>
       </section>

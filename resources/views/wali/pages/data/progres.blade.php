@@ -9,7 +9,7 @@
     $completed = $items->filter(fn ($item) => $item->capaian >= $item->target)->count();
     $inProgress = max($moduleCount - $completed, 0);
     $avgPercent = $moduleCount > 0 ? round($items->avg('persentase')) : 0;
-    $recentUpdates = $items->sortByDesc(fn ($item) => $item->terakhir)->take(3);
+    $recentUpdates = $items->sortByDesc(fn ($item) => $item->terakhir_setor ?? $item->updated_at ?? null)->take(3);
 @endphp
 
 <div class="mt-6 space-y-6">
@@ -74,7 +74,7 @@
                             <div class="mt-2 text-right text-xs text-emerald-600 font-semibold">{{ $module->persentase }}%</div>
                         </div>
                         <p class="mt-4 text-sm text-gray-600">{{ $module->catatan }}</p>
-                        <p class="mt-2 text-xs text-gray-400">Pembaruan terakhir: {{ optional($module->terakhir)->translatedFormat('d M Y') ?? '-' }}</p>
+                        <p class="mt-2 text-xs text-gray-400">Pembaruan terakhir: {{ optional($module->terakhir_setor ?? $module->updated_at)->translatedFormat('d M Y') ?? '-' }}</p>
                     </div>
                 @endforeach
             </div>
@@ -88,7 +88,7 @@
                     @foreach($recentUpdates as $module)
                         <li class="rounded-2xl border border-gray-100 p-3">
                             <p class="text-sm font-semibold text-gray-900">{{ $module->judul }}</p>
-                            <p class="text-xs text-gray-500">Pemutakhiran: {{ optional($module->terakhir)->diffForHumans() ?? '-' }}</p>
+                            <p class="text-xs text-gray-500">Pemutakhiran: {{ optional($module->terakhir_setor ?? $module->updated_at)->diffForHumans() ?? '-' }}</p>
                             <p class="mt-2 text-xs text-gray-600">
                                 {{ $module->capaian }} / {{ $module->target }} {{ $module->satuan }} · {{ $module->persentase }}%
                             </p>

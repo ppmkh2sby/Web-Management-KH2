@@ -22,16 +22,22 @@ class ProgressKeilmuanPolicy
 
     public function create(User $user): bool
     {
-        return $this->isStaff($user);
+        if ($this->isStaff($user)) {
+            return true;
+        }
+
+        return $this->ownsSantriRecord($user, (int) optional($user->santri)->id);
     }
 
     public function update(User $user, ProgressKeilmuan $progress): bool
     {
-        return $this->isStaff($user);
+        return $this->isStaff($user)
+            || $this->ownsSantriRecord($user, $progress->santri_id);
     }
 
     public function delete(User $user, ProgressKeilmuan $progress): bool
     {
-        return $this->isStaff($user);
+        return $this->isStaff($user)
+            || $this->ownsSantriRecord($user, $progress->santri_id);
     }
 }

@@ -17,55 +17,82 @@
   @endif
 
   @if($canManage && $mode === 'input')
-  <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-    <div class="flex items-center justify-between mb-3">
+  <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-4">
+    <div class="flex items-center justify-between">
       <div>
         <p class="text-sm text-gray-500">Panel Tim Ketertiban</p>
-        <h3 class="text-lg font-semibold text-gray-900">Tambah Presensi</h3>
+        <h3 class="text-lg font-semibold text-gray-900">Input Presensi Massal</h3>
+        <p class="text-xs text-gray-500">Pilih status per santri, lalu simpan sekali klik.</p>
       </div>
       <span class="text-xs text-gray-500">Ketertiban bisa mengelola semua santri</span>
     </div>
-    <form method="POST" action="{{ route('santri.presensi.store') }}" class="grid gap-3 md:grid-cols-2">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="text-sm text-gray-700">Kelompok:</div>
+        <div class="flex gap-2">
+          @foreach(['putra'=>'Putra','putri'=>'Putri'] as $val => $label)
+            <a href="{{ route('santri.presensi.index', ['mode' => 'input', 'gender' => $val]) }}"
+               class="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs {{ $gender === $val ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
+              {{ $label }}
+            </a>
+          @endforeach
+        </div>
+      </div>
+    <form method="POST" action="{{ route('santri.presensi.store') }}" class="space-y-4">
       @csrf
-      <div>
-        <label class="text-sm font-medium text-gray-700">Santri</label>
-        <select name="santri_id" class="mt-1 w-full rounded-xl border-gray-200 text-sm" required>
-          <option value="">Pilih santri</option>
-          @foreach($santriList as $santri)
-            <option value="{{ $santri->id }}">{{ $santri->nama_lengkap }} ({{ $santri->tim ?? '-' }})</option>
-          @endforeach
-        </select>
+      <div class="grid gap-3 md:grid-cols-3">
+        <div>
+          <label class="text-sm font-medium text-gray-700">Kategori Kegiatan</label>
+          <select name="kategori" class="mt-1 w-full rounded-xl border-gray-200 text-sm" required>
+            @foreach($kategoriOptions as $kategori)
+              <option value="{{ $kategori }}">{{ ucfirst($kategori) }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-700">Waktu</label>
+          <select name="waktu" class="mt-1 w-full rounded-xl border-gray-200 text-sm" required>
+            @foreach($waktuOptions as $waktu)
+              <option value="{{ $waktu }}">{{ ucfirst($waktu) }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-700">Catatan (opsional, berlaku untuk semua)</label>
+          <input name="catatan" class="mt-1 w-full rounded-xl border-gray-200 text-sm" placeholder="Misal: Kegiatan pagi" />
+        </div>
       </div>
-      <div>
-        <label class="text-sm font-medium text-gray-700">Status</label>
-        <select name="status" class="mt-1 w-full rounded-xl border-gray-200 text-sm" required>
-          @foreach($statuses as $status)
-            <option value="{{ $status }}">{{ ucfirst($status) }}</option>
-          @endforeach
-        </select>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500">
+              <th class="py-2">Santri</th>
+              <th class="py-2 text-center">Hadir</th>
+              <th class="py-2 text-center">Izin</th>
+              <th class="py-2 text-center">Sakit</th>
+              <th class="py-2 text-center">Alpha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($santriList as $santri)
+              <tr class="border-t border-gray-100">
+                <td class="py-2 pr-2">
+                  <div class="font-semibold text-gray-900">{{ $santri->nama_lengkap }}</div>
+                  <div class="text-xs text-gray-500">Tim: {{ $santri->tim ?? '-' }}</div>
+                </td>
+                @foreach(['hadir','izin','sakit','alpha'] as $opt)
+                  <td class="py-2 text-center">
+                    <input type="radio" name="presensi[{{ $santri->id }}]" value="{{ $opt }}" class="h-4 w-4 text-emerald-600 border-gray-300" />
+                  </td>
+                @endforeach
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
       </div>
-      <div>
-        <label class="text-sm font-medium text-gray-700">Kategori Kegiatan</label>
-        <select name="kategori" class="mt-1 w-full rounded-xl border-gray-200 text-sm" required>
-          @foreach($kategoriOptions as $kategori)
-            <option value="{{ $kategori }}">{{ ucfirst($kategori) }}</option>
-          @endforeach
-        </select>
-      </div>
-      <div>
-        <label class="text-sm font-medium text-gray-700">Waktu</label>
-        <select name="waktu" class="mt-1 w-full rounded-xl border-gray-200 text-sm" required>
-          @foreach($waktuOptions as $waktu)
-            <option value="{{ $waktu }}">{{ ucfirst($waktu) }}</option>
-          @endforeach
-        </select>
-      </div>
-      <div class="md:col-span-2">
-        <label class="text-sm font-medium text-gray-700">Catatan</label>
-        <textarea name="catatan" rows="2" class="mt-1 w-full rounded-xl border-gray-200 text-sm" placeholder="Opsional"></textarea>
-      </div>
-      <div class="md:col-span-2 flex justify-end">
-        <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-white text-sm font-semibold hover:bg-emerald-700">Simpan</button>
+
+      <div class="flex justify-end">
+        <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-white text-sm font-semibold hover:bg-emerald-700">Simpan Presensi</button>
       </div>
     </form>
   </div>
@@ -74,17 +101,54 @@
   <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
     <div class="flex items-center justify-between mb-3">
       <div>
-        <p class="text-sm text-gray-500">{{ $canManage ? ($mode === 'input' ? 'Semua Presensi' : 'Presensi Saya') : 'Presensi Saya' }}</p>
+        @php
+          $subtitle = 'Presensi Saya';
+          if($canManage && $mode === 'input') { $subtitle = 'Semua Presensi'; }
+          if($isStaffViewer) { $subtitle = 'Rekap Presensi'; }
+        @endphp
+        <p class="text-sm text-gray-500">{{ $subtitle }}</p>
         <h3 class="text-lg font-semibold text-gray-900">Riwayat Presensi</h3>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
+        @if($canManage && $mode==='input')
+          <div class="flex gap-2">
+            @foreach(['putra'=>'Putra','putri'=>'Putri'] as $val => $label)
+              <a href="{{ route('santri.presensi.index', ['mode' => 'input', 'gender' => $val]) }}"
+                 class="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs {{ $gender === $val ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
+                {{ $label }}
+              </a>
+            @endforeach
+          </div>
+        @endif
         @if($canManage)
           <div class="relative">
-            <select class="rounded-xl border-gray-200 text-xs py-2 px-3" onchange="location.href='{{ route('santri.presensi.index') }}?mode='+this.value">
+            <select class="rounded-xl border-gray-200 text-xs py-2 px-3" onchange="location.href='{{ route('santri.presensi.index') }}?mode='+this.value+'&gender={{ $gender }}'">
               <option value="input" @selected($mode==='input')>Input presensi</option>
               <option value="mine" @selected($mode==='mine')>Presensi saya</option>
             </select>
           </div>
+        @endif
+        @if($isStaffViewer || $canManage)
+          <form method="GET" action="{{ route('santri.presensi.index') }}" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="mode" value="{{ $mode }}" />
+            @if($mode==='input')
+              <input type="hidden" name="gender" value="{{ $gender }}" />
+            @endif
+            <input name="search" value="{{ $search }}" placeholder="Cari santri" class="rounded-xl border border-gray-200 px-3 py-1.5 text-sm" />
+            <select name="gender_filter" class="rounded-xl border border-gray-200 px-3 py-1.5 text-sm">
+              <option value="all" @selected(($genderFilter ?? 'all')==='all')>Semua</option>
+              <option value="putra" @selected(($genderFilter ?? 'all')==='putra')>Putra</option>
+              <option value="putri" @selected(($genderFilter ?? 'all')==='putri')>Putri</option>
+            </select>
+            <select name="kategori_filter" class="rounded-xl border border-gray-200 px-3 py-1.5 text-sm">
+              <option value="">Semua kegiatan</option>
+              @foreach($kategoriOptions as $kategori)
+                <option value="{{ $kategori }}" @selected(($kategoriFilter ?? '')===$kategori)>{{ ucfirst($kategori) }}</option>
+              @endforeach
+            </select>
+            <input type="date" name="tanggal" value="{{ $tanggalFilter ?? '' }}" class="rounded-xl border border-gray-200 px-3 py-1.5 text-sm" />
+            <button class="rounded-xl bg-gray-800 px-3 py-1.5 text-white text-xs" type="submit">Cari</button>
+          </form>
         @endif
         <span class="text-xs text-gray-500">{{ $presensis->total() }} catatan</span>
       </div>

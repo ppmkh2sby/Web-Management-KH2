@@ -152,7 +152,7 @@ class MonitoringController extends Controller
                     'level' => 'Intermediate',
                     'catatan' => 'Fokuskan murajaah pada surah pendek menjelang tasmi\'.',
                     'pembimbing' => 'Ust. Abdullah',
-                    'terakhir' => Carbon::today()->subDays(1),
+                    'terakhir_setor' => Carbon::today()->subDays(1),
                 ],
                 [
                     'judul' => 'Fiqih Ibadah',
@@ -162,7 +162,7 @@ class MonitoringController extends Controller
                     'level' => 'Fundamental',
                     'catatan' => 'Bab thaharah perlu diulang sebelum ujian lisan.',
                     'pembimbing' => 'Ust. Farhan',
-                    'terakhir' => Carbon::today()->subDays(2),
+                    'terakhir_setor' => Carbon::today()->subDays(2),
                 ],
                 [
                     'judul' => 'Bahasa Arab',
@@ -172,7 +172,7 @@ class MonitoringController extends Controller
                     'level' => 'Advance',
                     'catatan' => 'Pertahankan setoran harian mufrodat baru.',
                     'pembimbing' => 'Ustadzah Alia',
-                    'terakhir' => Carbon::today()->subDays(3),
+                    'terakhir_setor' => Carbon::today()->subDays(3),
                 ],
             ])->map(function ($item) {
                 $item['persentase'] = $item['target'] ? round(($item['capaian'] / $item['target']) * 100) : 0;

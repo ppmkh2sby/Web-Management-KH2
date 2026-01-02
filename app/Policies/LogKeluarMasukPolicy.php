@@ -38,6 +38,12 @@ class LogKeluarMasukPolicy
 
     public function delete(User $user, LogKeluarMasuk $log): bool
     {
-        return $this->isStaff($user);
+        if ($this->isStaff($user)) {
+            return true;
+        }
+
+        return $user->role === \App\Enum\Role::SANTRI
+            && optional($user->santri)->id === $log->santri_id
+            && $log->status === 'proses';
     }
 }
