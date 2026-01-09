@@ -18,6 +18,8 @@
 <body class="bg-gray-100 text-gray-800 overflow-y-scroll antialiased">
 @php
   $currentUser = auth()->user();
+  // Pastikan relasi santri tersedia agar field tim terbaca di sidebar/profile
+  $currentUser?->loadMissing('santri');
   $roleValue = $currentUser?->role?->value;
   $isKetertiban = $currentUser?->isKetertiban();
   $activeChildCode = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
@@ -25,11 +27,7 @@
   $santriTeam = null;
 
   if ($roleValue === \App\Enum\Role::SANTRI->value) {
-    // Ambil tim dari relasi santri atau fallback by user_id
-    $santriTeam = trim((string) ($currentUser?->santri?->tim ?? ''));
-    if ($santriTeam === '') {
-      $santriTeam = trim((string) optional(\App\Models\Santri::where('user_id', $currentUser?->id)->first())->tim ?? '');
-    }
+    $santriTeam = trim((string) ($currentUser?->teamName() ?? ''));
   } elseif ($roleValue === \App\Enum\Role::WALI->value && $hasChildSelected) {
     // Jika wali memilih santri tertentu, ambil tim santri tersebut via code
     $santriTeam = trim((string) optional(\App\Models\Santri::where('code', $activeChildCode)->first())->tim ?? '');
@@ -104,23 +102,34 @@
                     <span>Dashboard</span>
                   </a>
                 </li>
+                @php $isKetertibanUser = auth()->user()?->isKetertiban(); @endphp
                 <li>
                   <button type="button"
                           @click="presensiOpen = !presensiOpen"
                           class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.presensi.*') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
-                    <i data-lucide="clipboard-check" class="w-5 h-5"></i>
-                    <span class="flex-1 text-left">Presensi</span>
+                    <i data-lucide="user-check" class="w-5 h-5"></i>
+                    <span class="flex-1 text-left">Data Santri</span>
                     <i :class="presensiOpen ? 'rotate-180' : ''" data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"></i>
                   </button>
                   <div x-show="presensiOpen" x-transition class="pl-12 pr-4 pt-1 pb-1 space-y-0.5">
                     <a href="{{ route('santri.presensi.index', ['mode' => 'mine']) }}"
                        class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'mine'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
-                      Presensi Saya
+                      Kehadiran Saya
                     </a>
-                    <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}"
-                       class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
-                      Presensi Tim
+                    <a href="{{ route('santri.kafarah.index', ['mode' => 'mine']) }}"
+                       class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.kafarah.index', ['mode' => 'mine'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                      Kafarah Saya
                     </a>
+                    @if($isKetertibanUser)
+                      <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}"
+                         class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        Kehadiran Santri
+                      </a>
+                      <a href="{{ route('santri.kafarah.index', ['mode' => 'team']) }}"
+                         class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.kafarah.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        Kafarah Santri
+                      </a>
+                    @endif
                   </div>
                 </li>
                 <li>

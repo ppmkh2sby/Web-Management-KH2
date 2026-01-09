@@ -20,6 +20,11 @@ class PresensiPolicy
             && $presensi->santri_id === $user->santri->id;
     }
 
+    private function team(User $user): string
+    {
+        return strtolower(trim((string) ($user->santri?->tim ?? '')));
+    }
+
     public function viewAny(User $user): bool
     {
         return ($user->role === \App\Enum\Role::SANTRI && $user->santri)
@@ -36,7 +41,13 @@ class PresensiPolicy
 
     public function create(User $user): bool
     {
-        return $this->isKetertiban($user);
+        if ($this->isKetertiban($user)) {
+            return true;
+        }
+
+        // Izinkan santri tim KTB
+        return $user->role === Role::SANTRI
+            && in_array(strtolower($user->teamName()), ['ketertiban', 'ktb'], true);
     }
 
     public function update(User $user, Presensi $presensi): bool

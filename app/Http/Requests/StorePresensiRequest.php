@@ -27,6 +27,7 @@ class StorePresensiRequest extends FormRequest
 
             // Shared
             'nama' => ['nullable', 'string', 'max:255'],
+            'tanggal' => ['required', 'date'],
             'kategori' => ['required', Rule::in(Kegiatan::KATEGORI)],
             'waktu' => ['required', Rule::in(Presensi::WAKTU)],
             'catatan' => ['nullable', 'string'],

@@ -6,8 +6,10 @@ use App\Http\Controllers\Santri\DashboardController as SantriDashboard;
 use App\Http\Controllers\Santri\ProgressKeilmuanController as SantriProgressKeilmuanController;
 use App\Http\Controllers\Santri\LogKeluarMasukController as SantriLogKeluarMasukController;
 use App\Http\Controllers\Santri\PresensiController as SantriPresensiController;
+use App\Http\Controllers\Santri\KafarahController as SantriKafarahController;
 use App\Http\Controllers\Wali\MonitoringController as WaliMonitoring;
 use App\Http\Controllers\Ketertiban\KehadiranController as KetertibanKehadiranController;
+use App\Http\Controllers\Ketertiban\KafarahController as KetertibanKafarahController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -62,7 +64,8 @@ Route::middleware(['auth'])
         Route::middleware('role:santri,pengurus,degur')->group(function () {
             Route::get('/data/progres-keilmuan', [SantriProgressKeilmuanController::class, 'index'])->name('data.progres');
             Route::post('/data/progres-keilmuan/sync', [SantriProgressKeilmuanController::class, 'sync'])->name('data.progres.sync');
-            Route::resource('presensi', SantriPresensiController::class)->names('presensi')->only(['index','show','store','update','destroy']);
+            Route::resource('presensi', SantriPresensiController::class)->names('presensi')->only(['index','show','store','update','destroy','create']);
+            Route::resource('kafarah', SantriKafarahController::class)->names('kafarah')->only(['index','show','store','update','destroy','create']);
         });
 
         Route::middleware('role:santri')->group(function () {

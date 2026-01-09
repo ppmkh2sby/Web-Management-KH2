@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $waktu
  * @property-read Santri $santri
  * @property-read Kegiatan $kegiatan
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class Presensi extends Model
 {
@@ -31,6 +34,8 @@ class Presensi extends Model
         'kegiatan_id',
         'catatan',
         'waktu',
+        'created_at',
+        'updated_at',
     ];
 
     public function santri(): BelongsTo

@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Enum\Role;
 use App\Models\Santri;
+use App\Models\Santri as SantriModel;
 
 /**
  * @property int $id
@@ -56,6 +57,60 @@ class User extends Authenticatable
         'role' => Role::class,
     ];
 
+    /**
+     * Static lookup tim berdasarkan kode/NIS (fallback bila kolom tim kosong).
+     */
+    protected static array $TEAM_LOOKUP = [
+        // PUTRA
+        '022121013' => 'PH',
+        '022222001' => 'Kebersihan',
+        '022222006' => 'Sekben',
+        '022323002' => 'KBM',
+        '022323004' => 'PH',
+        '022323006' => 'Acara',
+        '022424001' => 'KTB',
+        '022424006' => 'Sekben',
+        '022424007' => 'Acara',
+        '022424008' => 'KTB',
+        '022424010' => 'Ukppt',
+        '022424011' => 'KBM',
+        '022424012' => 'Ukppt',
+        '022423017' => 'Kebersihan',
+        '022424019' => 'KBM',
+        '022525004' => 'Kebersihan',
+        '022525005' => 'Ukppt',
+        '022525006' => 'Sekben',
+        '022525007' => 'Acara',
+        '022525013' => 'KTB',
+        '022524015' => 'Acara',
+
+        // PUTRI
+        '022121007' => 'Ukppt',
+        '022222004' => 'Acara',
+        '022323001' => 'PH',
+        '022323003' => 'Kebersihan',
+        '022323005' => 'KBM',
+        '022424002' => 'Acara',
+        '022424003' => 'Ukppt',
+        '022424004' => 'KBM',
+        '022424005' => 'Kebersihan',
+        '022424009' => 'Sekben',
+        '022424013' => 'Kebersihan',
+        '022424014' => 'PH',
+        '022424015' => 'Acara',
+        '022424016' => 'KTB',
+        '022424018' => 'Sekben',
+        '022525001' => 'Ukppt',
+        '022525002' => 'Acara',
+        '022525003' => 'KTB',
+        '022525008' => 'KTB',
+        '022525009' => 'Kebersihan',
+        '022525010' => 'Acara',
+        '022525011' => 'KBM',
+        '022525012' => 'Ukppt',
+        '022525014' => 'KBM',
+    ];
+
     public function santri(){
         return $this->hasOne(Santri::class);
     }
@@ -74,18 +129,9 @@ class User extends Authenticatable
             return false;
         }
 
-        $tim = trim((string) ($this->santri?->tim ?? ''));
+        $team = strtolower($this->teamName());
 
-        if ($tim === '') {
-            // Fallback to direct lookup if relasi belum termuat
-            $tim = trim((string) 
-                
-                
-                optional(Santri::where('user_id', $this->id)->first())->tim
-            );
-        }
-
-        return strcasecmp($tim, 'ketertiban') === 0;
+        return in_array($team, ['ketertiban','ktb'], true);
     }
 
     public function hasRole(Role|string $role): bool {
@@ -96,6 +142,42 @@ class User extends Authenticatable
     {
         $val = $role instanceof Role ? $role->value : (string) $role;
         return $q->where('role', $val);
+    }
+
+    /**
+     * Ambil nama tim dengan fallback berlapis.
+     */
+    public function teamName(): string
+    {
+        // 1) relasi santri yang sudah dimuat
+        $team = trim((string) ($this->santri?->tim ?? ''));
+        if ($team !== '') {
+            return $team;
+        }
+
+        // 2) cari santri by user_id jika ada
+        $byUser = optional(SantriModel::where('user_id', $this->id)->first())->tim ?? '';
+        $byUser = trim((string) $byUser);
+        if ($byUser !== '') {
+            return $byUser;
+        }
+
+        // 3) fallback by code/login_code
+        $code = $this->santri?->code ?? $this->login_code ?? null;
+        if ($code) {
+            $byCode = optional(SantriModel::where('code', $code)->first())->tim ?? '';
+            $byCode = trim((string) $byCode);
+            if ($byCode !== '') {
+                return $byCode;
+            }
+
+            // 4) fallback ke lookup statis jika tim di DB kosong
+            if (array_key_exists($code, self::$TEAM_LOOKUP)) {
+                return (string) (self::$TEAM_LOOKUP[$code] ?? '');
+            }
+        }
+
+        return '';
     }
 
 }
