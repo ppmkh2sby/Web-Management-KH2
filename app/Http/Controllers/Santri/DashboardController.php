@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Santri;
 
 use App\Enum\Role;
 use App\Http\Controllers\Controller;
-use App\Models\Santri;
+use App\Models\Kafarah;
 use App\Models\Kehadiran;
+use App\Models\LogKeluarMasuk;
+use App\Models\Presensi;
+use App\Models\ProgressKeilmuan;
+use App\Models\Santri;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -51,32 +54,118 @@ class DashboardController extends Controller
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
-        $isSantri = $user && $user->role === Role::SANTRI;
+        $santriOwned = $user?->santri;
+        $isSantriContext = (bool) ($user && $user->role === Role::SANTRI && $santriOwned);
+        $santri = $isSantriContext ? $santriOwned->loadMissing(['kelas', 'walis', 'user']) : $this->loadSantri();
+        $santriId = $isSantriContext ? $santriOwned->id : null;
 
-        $santri = $this->loadSantri();
-        $santriId = $santri?->id ?? 0;
-        $today  = Carbon::today();
+        $displayName = trim((string) ($santriOwned?->nama_lengkap ?? $user?->name ?? 'Santri'));
+        $todayLabel = Carbon::now()->translatedFormat('l, d F Y');
 
-        // ---- Kehadiran (aman jika model tidak ada atau user bukan santri)
-        $K = $this->q(Kehadiran::class);
-        $hadir = $K && $santriId ? (clone $K)->where('santri_id', $santriId)->whereMonth('tanggal', now()->month)->where('status','hadir')->count() : 0;
-        $izin  = $K && $santriId ? (clone $K)->where('santri_id', $santriId)->whereMonth('tanggal', now()->month)->where('status','izin')->count()  : 0;
-        $alpa  = $K && $santriId ? (clone $K)->where('santri_id', $santriId)->whereMonth('tanggal', now()->month)->where('status','alpa')->count()  : 0;
+        $attendanceStats = [
+            'total' => 0,
+            'hadir' => 0,
+            'izin' => 0,
+            'sakit' => 0,
+            'alpha' => 0,
+            'persentase' => 0,
+        ];
+        $attendanceRecent = collect();
 
-        // ---- Jadwal hari ini
-        $J = $this->q('App\\Models\\JadwalPelajaran');
-        $jadwalHariIni = $J
-            ? (clone $J)->with('mapel','guru')->where('kelas_id', optional($santri?->kelas)->id)->whereDate('tanggal', $today)->orderBy('jam_mulai')->get()
-            : collect(); // fallback: koleksi kosong
+        $kafarahStats = [
+            'total' => 0,
+            'total_kafarah' => 0,
+            'jumlah_setor' => 0,
+            'sisa_tanggungan' => 0,
+        ];
+        $kafarahRecent = collect();
 
-        // ---- Pengumuman terbaru (bisa dibaca semua role)
-        $P = $this->q('App\\Models\\Pengumuman');
-        $pengumuman = $P ? (clone $P)->latest()->take(4)->get() : collect();
+        $progressStats = [
+            'total' => 0,
+            'completed' => 0,
+            'in_progress' => 0,
+            'average' => 0,
+            'quran' => 0,
+            'hadits' => 0,
+        ];
+        $progressRecent = collect();
+
+        $logStats = collect(LogKeluarMasuk::STATUSES)->mapWithKeys(
+            fn (string $status) => [strtolower($status) => 0]
+        )->all();
+        $logStats['total'] = 0;
+        $logRecent = collect();
+
+        if ($santriId) {
+            $attendanceBase = Presensi::query()->where('santri_id', $santriId);
+            $attendanceStats['total'] = (clone $attendanceBase)->count();
+            $attendanceStats['hadir'] = (clone $attendanceBase)->where('status', 'hadir')->count();
+            $attendanceStats['izin'] = (clone $attendanceBase)->where('status', 'izin')->count();
+            $attendanceStats['sakit'] = (clone $attendanceBase)->where('status', 'sakit')->count();
+            $attendanceStats['alpha'] = (clone $attendanceBase)->where('status', 'alpha')->count();
+            $attendanceStats['persentase'] = $attendanceStats['total'] > 0
+                ? (int) round(($attendanceStats['hadir'] / $attendanceStats['total']) * 100)
+                : 0;
+            $attendanceRecent = (clone $attendanceBase)->with('kegiatan')->latest('created_at')->take(5)->get();
+
+            $kafarahRows = Kafarah::query()
+                ->where('santri_id', $santriId)
+                ->latest('tanggal')
+                ->get();
+            $kafarahStats['total'] = $kafarahRows->count();
+            $kafarahStats['total_kafarah'] = (int) $kafarahRows->sum('tanggungan');
+            $kafarahStats['jumlah_setor'] = (int) $kafarahRows->sum('jumlah_setor');
+            $kafarahStats['sisa_tanggungan'] = max(
+                0,
+                $kafarahStats['total_kafarah'] - $kafarahStats['jumlah_setor']
+            );
+            $kafarahRecent = $kafarahRows->take(5);
+
+            $progressRows = ProgressKeilmuan::query()
+                ->where('santri_id', $santriId)
+                ->latest('updated_at')
+                ->get();
+            $progressStats['total'] = $progressRows->count();
+            $progressStats['completed'] = $progressRows->filter(
+                fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) >= 100
+            )->count();
+            $progressStats['in_progress'] = $progressRows->filter(
+                fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) > 0 && ($item->persentase ?? 0) < 100
+            )->count();
+            $progressStats['average'] = $progressStats['total'] > 0
+                ? (int) round($progressRows->avg(fn (ProgressKeilmuan $item) => $item->persentase ?? 0))
+                : 0;
+            $progressStats['quran'] = $progressRows->where('level', ProgressKeilmuan::LEVEL_QURAN)->count();
+            $progressStats['hadits'] = $progressRows->where('level', ProgressKeilmuan::LEVEL_HADITS)->count();
+            $progressRecent = $progressRows->take(5);
+
+            $logRows = LogKeluarMasuk::query()
+                ->where('santri_id', $santriId)
+                ->latest('tanggal_pengajuan')
+                ->get();
+            $logStats['total'] = $logRows->count();
+            foreach (LogKeluarMasuk::STATUSES as $status) {
+                $logStats[strtolower($status)] = $logRows->where('status', $status)->count();
+            }
+            $logRecent = $logRows->take(5);
+        }
 
         $emailVerified = !is_null(Auth::user()->email_verified_at);
 
         return view('santri.pages.home', compact(
-            'santri','hadir','izin','alpa','jadwalHariIni','pengumuman','emailVerified','isSantri'
+            'santri',
+            'emailVerified',
+            'isSantriContext',
+            'displayName',
+            'todayLabel',
+            'attendanceStats',
+            'attendanceRecent',
+            'kafarahStats',
+            'kafarahRecent',
+            'progressStats',
+            'progressRecent',
+            'logStats',
+            'logRecent'
         ));
     }
 

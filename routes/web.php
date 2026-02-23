@@ -10,7 +10,6 @@ use App\Http\Controllers\Santri\KafarahController as SantriKafarahController;
 use App\Http\Controllers\Wali\MonitoringController as WaliMonitoring;
 use App\Http\Controllers\Ketertiban\KehadiranController as KetertibanKehadiranController;
 use App\Http\Controllers\Ketertiban\KafarahController as KetertibanKafarahController;
-use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,7 +20,8 @@ Route::redirect('/', '/landing');
 
 // ---------- Authenticated (umum) ----------
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Halaman dashboard lama dinonaktifkan, arahkan ke landing.
+    Route::redirect('/dashboard', '/landing')->name('dashboard');
 
     // Wali
     Route::middleware('role:wali')->prefix('wali')->name('wali.')->group(function () {

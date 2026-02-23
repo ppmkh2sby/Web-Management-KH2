@@ -24,15 +24,9 @@
                 </nav>
                 <div class="flex items-center gap-3">
                     @if(Route::has('login'))
-                        @auth
-                            <a href="{{ url('/dashboard') }}" class="rounded-md border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-700 hover:text-white transition">
-                                Dashboard
-                            </a>
-                        @else
-                            <a href="{{ route('login') }}" class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 transition">
-                                Login
-                            </a>
-                        @endauth
+                        <a href="{{ route('login') }}" class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 transition">
+                            Login
+                        </a>
                     @endif
                 </div>
             </div>
@@ -57,7 +51,7 @@
                         </a>
                         @if(Route::has('login'))
                             <a href="{{ route('login') }}" class="rounded-lg border border-[#151513] px-5 py-3 text-sm font-semibold text-[#151513] hover:bg-[#151513] hover:text-white transition">
-                                Masuk Dashboard
+                                Login
                             </a>
                         @endif
                     </div>
