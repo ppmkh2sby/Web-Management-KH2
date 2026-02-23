@@ -10,6 +10,16 @@
     document.addEventListener('DOMContentLoaded', () => { window.lucide?.createIcons?.(); });
   </script>
   <style>
+    /* Critical layout styles to prevent FOUC/shift before Vite CSS hydrates */
+    .layout-shell { min-height: 100vh; padding: 1.25rem; }
+    .layout-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+    .sidebar-shell { width: 280px; min-width: 280px; }
+    .content-shell { min-width: 0; }
+    @media (max-width: 1023.98px) {
+      .layout-grid { grid-template-columns: 1fr; }
+      .sidebar-shell { width: 100%; min-width: 0; height: auto; position: static; }
+    }
+
     /* Prevent layout shift when icons/fonts load */
     i[data-lucide] { width: 1.25rem; height: 1.25rem; display: inline-block; vertical-align: middle; }
     body { scrollbar-gutter: stable; }
@@ -33,9 +43,9 @@
     $santriTeam = trim((string) optional(\App\Models\Santri::where('code', $activeChildCode)->first())->tim ?? '');
   }
 @endphp
-  <div class="min-h-screen p-5">
-    <div class="grid grid-cols-[280px_1fr] gap-5">
-      <aside class="bg-white rounded-3xl shadow-lg border border-gray-100 h-[calc(100vh-40px)] sticky top-5 overflow-hidden flex flex-col"
+  <div class="layout-shell min-h-screen p-5">
+    <div class="layout-grid grid grid-cols-[280px_1fr] gap-5">
+      <aside class="sidebar-shell bg-white rounded-3xl shadow-lg border border-gray-100 h-[calc(100vh-40px)] sticky top-5 overflow-hidden flex flex-col"
              x-data="{ 
                presensiOpen: {{ request()->routeIs('santri.presensi.*') ? 'true' : 'false' }},
                profileMenuOpen: false
@@ -204,7 +214,7 @@
         </div>
       </aside>
 
-      <section>
+      <section class="content-shell">
         <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-5">
           @yield('content')
         </div>
