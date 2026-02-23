@@ -348,11 +348,18 @@
         @else
           <ul class="divide-y divide-gray-100">
             @foreach($recentUpdates as $entry)
+              @php
+                $timestamp = $entry->terakhir_setor;
+                if ($timestamp instanceof \Carbon\Carbon && $timestamp->isMidnight() && $entry->updated_at) {
+                  $timestamp = $entry->updated_at;
+                }
+                $timestamp = $timestamp ?: $entry->updated_at;
+              @endphp
               <li class="py-2 first:pt-2.5">
                 <div class="flex items-start justify-between gap-2 mb-0.5">
                   <p class="text-xs font-semibold leading-4 text-gray-900">{{ $entry->judul }}</p>
                   <p class="text-[10px] text-gray-600 whitespace-nowrap">
-                    {{ optional($entry->terakhir_setor ?? $entry->updated_at)->translatedFormat('H:i \\W\\I\\B, d M Y') ?? '-' }}
+                    {{ optional($timestamp)->timezone(config('app.timezone'))->translatedFormat('H:i \\W\\I\\B, d M Y') ?? '-' }}
                   </p>
                 </div>
                 <p class="text-[11px] font-medium leading-4 text-gray-600">

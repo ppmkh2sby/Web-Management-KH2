@@ -26,7 +26,7 @@ class ProgressKeilmuan extends Model
     ];
 
     protected $casts = [
-        'terakhir_setor' => 'date',
+        'terakhir_setor' => 'datetime',
     ];
 
     protected $appends = ['persentase'];

@@ -101,6 +101,8 @@ class ProgressKeilmuanController extends Controller
             ->get()
             ->keyBy('judul');
 
+        $timestamp = now(config('app.timezone'));
+
         $this->authorize('create', ProgressKeilmuan::class);
 
         foreach ($payload['modules'] as $row) {
@@ -130,7 +132,7 @@ class ProgressKeilmuanController extends Controller
                     'satuan' => 'halaman',
                     'level' => $category,
                     'judul' => $row['judul'],
-                    'terakhir_setor' => now(),
+                    'terakhir_setor' => $timestamp,
                 ]);
             } else {
                 ProgressKeilmuan::create([
@@ -140,7 +142,7 @@ class ProgressKeilmuanController extends Controller
                     'capaian' => $value,
                     'satuan' => 'halaman',
                     'level' => $category,
-                    'terakhir_setor' => now(),
+                    'terakhir_setor' => $timestamp,
                 ]);
             }
         }
