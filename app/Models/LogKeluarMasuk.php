@@ -10,7 +10,7 @@ class LogKeluarMasuk extends Model
 {
     use HasFactory;
 
-    public const STATUSES = ['disetujui', 'proses', 'tercatat', 'ditolak'];
+    public const STATUSES = ['tercatat'];
 
     protected $fillable = [
         'santri_id',

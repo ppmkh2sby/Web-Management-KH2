@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Santri;
 
+use App\Enum\Role;
 use App\Http\Controllers\Controller;
 use App\Models\ProgressKeilmuan;
 use Illuminate\Http\RedirectResponse;
@@ -14,8 +15,21 @@ class ProgressKeilmuanController extends Controller
     private const CATEGORY_QURAN = 'al-quran';
     private const CATEGORY_HADITS = 'al-hadits';
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        $user = auth()->user();
+        if ($user?->role === Role::WALI) {
+            $firstChildCode = $user->waliOf()
+                ->orderBy('santris.nama_lengkap')
+                ->value('santris.code');
+
+            if (filled($firstChildCode)) {
+                return redirect()->route('wali.anak.progres', ['santriCode' => $firstChildCode]);
+            }
+
+            return redirect()->route('profile.edit')->with('status', 'Akun wali belum terhubung ke data anak.');
+        }
+
         $santri = $this->requireSantri();
         $category = $this->resolveCategory((string) $request->input('category'));
 

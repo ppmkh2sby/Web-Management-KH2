@@ -16,8 +16,20 @@ class RedirectPath
             return route('landing');
         }
 
-        // Semua role inti (santri, pengurus, dewan guru, wali) diarahkan ke santri/home sebagai beranda utama.
-        if (in_array($user->role, [Role::SANTRI, Role::DEWAN_GURU, Role::PENGURUS, Role::WALI], true)) {
+        if ($user->role === Role::WALI) {
+            $firstChildCode = $user->waliOf()
+                ->orderBy('santris.nama_lengkap')
+                ->value('santris.code');
+
+            if (filled($firstChildCode)) {
+                return route('wali.anak.overview', ['santriCode' => $firstChildCode]);
+            }
+
+            return route('profile.edit');
+        }
+
+        // Semua role inti (santri, pengurus, dewan guru) diarahkan ke santri/home sebagai beranda utama.
+        if (in_array($user->role, [Role::SANTRI, Role::DEWAN_GURU, Role::PENGURUS], true)) {
             return route('santri.home');
         }
 

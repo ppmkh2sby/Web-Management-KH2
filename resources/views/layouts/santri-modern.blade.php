@@ -33,8 +33,14 @@
   $roleValue = $currentUser?->role?->value;
   $isKetertiban = $currentUser?->isKetertiban();
   $activeChildCode = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
+  if ($roleValue === \App\Enum\Role::WALI->value && blank($activeChildCode)) {
+    $activeChildCode = $currentUser?->waliOf()
+      ->orderBy('santris.nama_lengkap')
+      ->value('santris.code');
+  }
   $hasChildSelected = filled($activeChildCode);
   $santriTeam = null;
+  $brandRoute = $roleValue === \App\Enum\Role::WALI->value ? route('wali.main') : route('dashboard');
 
   if ($roleValue === \App\Enum\Role::SANTRI->value) {
     $santriTeam = trim((string) ($currentUser?->teamName() ?? ''));
@@ -42,12 +48,14 @@
     // Jika wali memilih santri tertentu, ambil tim santri tersebut via code
     $santriTeam = trim((string) optional(\App\Models\Santri::where('code', $activeChildCode)->first())->tim ?? '');
   }
+  $santriTeamBadge = \App\Models\User::teamAbbreviation($santriTeam);
 @endphp
   <div class="layout-shell min-h-screen p-5">
     <div class="layout-grid grid grid-cols-[280px_1fr] gap-5">
       <aside class="sidebar-shell bg-white rounded-3xl shadow-lg border border-gray-100 h-[calc(100vh-40px)] sticky top-5 overflow-hidden flex flex-col"
              x-data="{ 
                presensiOpen: {{ request()->routeIs('santri.presensi.*') ? 'true' : 'false' }},
+               logMenuOpen: {{ request()->routeIs('santri.data.log') ? 'true' : 'false' }},
                profileMenuOpen: false
              }">
         <div class="px-6 py-5 border-b border-gray-100">
@@ -62,7 +70,7 @@
               if (file_exists(public_path($c))) { $logoRel = $c; break; }
             }
           @endphp
-          <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 group">
+          <a href="{{ $brandRoute }}" class="flex items-center gap-2.5 group">
             @if($logoRel)
               <img class="h-8 w-8 object-contain" src="{{ asset($logoRel) }}" alt="PPM KH2">
             @else
@@ -112,7 +120,10 @@
                     <span>Dashboard</span>
                   </a>
                 </li>
-                @php $isKetertibanUser = auth()->user()?->isKetertiban(); @endphp
+                @php
+                  $isKetertibanUser = auth()->user()?->isKetertiban();
+                  $teamFeatureBadge = $santriTeamBadge !== '' ? $santriTeamBadge : 'KTB';
+                @endphp
                 <li>
                   <button type="button"
                           @click="presensiOpen = !presensiOpen"
@@ -132,12 +143,14 @@
                     </a>
                     @if($isKetertibanUser)
                       <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}"
-                         class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
-                        Kehadiran Santri
+                         class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        <span>Kehadiran Santri</span>
+                        <span class="ml-2 inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700">{{ $teamFeatureBadge }}</span>
                       </a>
                       <a href="{{ route('santri.kafarah.index', ['mode' => 'team']) }}"
-                         class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.kafarah.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
-                        Kafarah Santri
+                         class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.kafarah.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        <span>Kafarah Santri</span>
+                        <span class="ml-2 inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700">{{ $teamFeatureBadge }}</span>
                       </a>
                     @endif
                   </div>
@@ -149,10 +162,36 @@
                   </a>
                 </li>
                 <li>
-                  <a href="{{ route('santri.data.log') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.data.log') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
-                    <i data-lucide="clock" class="w-5 h-5"></i>
-                    <span>Log Keluar/Masuk</span>
-                  </a>
+                  @if($roleValue === \App\Enum\Role::SANTRI->value)
+                    @php
+                      $logMode = request()->query('mode');
+                      $isLogRoute = request()->routeIs('santri.data.log');
+                      $isLogInputActive = $isLogRoute && ($logMode === null || $logMode === '' || $logMode === 'input');
+                      $isLogMineActive = $isLogRoute && $logMode === 'mine';
+                    @endphp
+                    <button type="button"
+                            @click="logMenuOpen = !logMenuOpen"
+                            class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ $isLogRoute ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
+                      <i data-lucide="clock" class="w-5 h-5"></i>
+                      <span class="flex-1 text-left">Log Keluar/Masuk</span>
+                      <i :class="logMenuOpen ? 'rotate-180' : ''" data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"></i>
+                    </button>
+                    <div x-show="logMenuOpen" x-transition class="pl-12 pr-4 pt-1 pb-1 space-y-0.5">
+                      <a href="{{ route('santri.data.log', ['mode' => 'input']) }}"
+                         class="block rounded-lg px-3 py-2 text-sm {{ $isLogInputActive ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        Input Keluar/Masuk
+                      </a>
+                      <a href="{{ route('santri.data.log', ['mode' => 'mine']) }}"
+                         class="block rounded-lg px-3 py-2 text-sm {{ $isLogMineActive ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        Log Saya
+                      </a>
+                    </div>
+                  @else
+                    <a href="{{ route('santri.data.log') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.data.log') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
+                      <i data-lucide="clock" class="w-5 h-5"></i>
+                      <span>Log Keluar/Masuk</span>
+                    </a>
+                  @endif
                 </li>
               </ul>
             @endif
@@ -215,7 +254,7 @@
       </aside>
 
       <section class="content-shell">
-        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-5">
+        <div class="bg-white rounded-3xl shadow-lg border border-gray-100 p-5 @yield('content_panel_class')">
           @yield('content')
         </div>
       </section>

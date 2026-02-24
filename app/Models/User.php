@@ -111,6 +111,22 @@ class User extends Authenticatable
         '022525014' => 'KBM',
     ];
 
+    /**
+     * Singkatan standar nama tim.
+     * Key disimpan dalam format lowercase/normalized agar mudah dicocokkan.
+     */
+    protected static array $TEAM_ABBREVIATIONS = [
+        'ketertiban' => 'KTB',
+        'ktb' => 'KTB',
+        'kebersihan' => 'KBS',
+        'kbs' => 'KBS',
+        'keilmuan' => 'KBM',
+        'kbm' => 'KBM',
+        'pengurus harian' => 'PH',
+        'pengurusharian' => 'PH',
+        'ph' => 'PH',
+    ];
+
     public function santri(){
         return $this->hasOne(Santri::class);
     }
@@ -129,9 +145,7 @@ class User extends Authenticatable
             return false;
         }
 
-        $team = strtolower($this->teamName());
-
-        return in_array($team, ['ketertiban','ktb'], true);
+        return self::teamAbbreviation($this->teamName()) === 'KTB';
     }
 
     public function hasRole(Role|string $role): bool {
@@ -178,6 +192,25 @@ class User extends Authenticatable
         }
 
         return '';
+    }
+
+    /**
+     * Normalisasi nama tim ke singkatan yang dipakai UI.
+     * Jika tim belum dipetakan, kembalikan nama aslinya.
+     */
+    public static function teamAbbreviation(?string $team): string
+    {
+        $teamRaw = trim((string) $team);
+        if ($teamRaw === '') {
+            return '';
+        }
+
+        $normalized = strtolower((string) preg_replace('/\s+/', ' ', $teamRaw));
+        $compact = str_replace(' ', '', $normalized);
+
+        return self::$TEAM_ABBREVIATIONS[$normalized]
+            ?? self::$TEAM_ABBREVIATIONS[$compact]
+            ?? $teamRaw;
     }
 
 }

@@ -22,28 +22,16 @@ class LogKeluarMasukPolicy
 
     public function create(User $user): bool
     {
-        return $this->isStaff($user) || $user->role === \App\Enum\Role::SANTRI;
+        return $user->role === \App\Enum\Role::SANTRI;
     }
 
     public function update(User $user, LogKeluarMasuk $log): bool
     {
-        if ($this->isStaff($user)) {
-            return true;
-        }
-
-        return $user->role === \App\Enum\Role::SANTRI
-            && optional($user->santri)->id === $log->santri_id
-            && $log->status === 'proses';
+        return $this->ownsSantriRecord($user, $log->santri_id);
     }
 
     public function delete(User $user, LogKeluarMasuk $log): bool
     {
-        if ($this->isStaff($user)) {
-            return true;
-        }
-
-        return $user->role === \App\Enum\Role::SANTRI
-            && optional($user->santri)->id === $log->santri_id
-            && $log->status === 'proses';
+        return $this->ownsSantriRecord($user, $log->santri_id);
     }
 }

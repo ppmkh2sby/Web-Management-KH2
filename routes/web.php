@@ -25,6 +25,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Wali
     Route::middleware('role:wali')->prefix('wali')->name('wali.')->group(function () {
+        Route::get('/', [WaliMonitoring::class, 'main'])->name('main');
         Route::get('/anak/{santriCode}', [WaliMonitoring::class, 'overview'])->name('anak.overview');
         Route::get('/anak/{santriCode}/presensi', [WaliMonitoring::class, 'presensi'])->name('anak.presensi');
         Route::get('/anak/{santriCode}/progres', [WaliMonitoring::class, 'progres'])->name('anak.progres');
@@ -61,15 +62,21 @@ Route::middleware(['auth'])
             Route::get('/presensi',         [SantriDashboard::class, 'presensi'])->name('presensi');
         });
 
-        Route::middleware('role:santri,pengurus,degur')->group(function () {
+        Route::middleware('role:santri,pengurus,degur,wali')->group(function () {
             Route::get('/data/progres-keilmuan', [SantriProgressKeilmuanController::class, 'index'])->name('data.progres');
+        });
+
+        Route::middleware('role:santri,pengurus,degur')->group(function () {
             Route::post('/data/progres-keilmuan/sync', [SantriProgressKeilmuanController::class, 'sync'])->name('data.progres.sync');
             Route::resource('presensi', SantriPresensiController::class)->names('presensi')->only(['index','show','store','update','destroy','create']);
             Route::resource('kafarah', SantriKafarahController::class)->names('kafarah')->only(['index','show','store','update','destroy','create']);
         });
 
-        Route::middleware('role:santri')->group(function () {
+        Route::middleware('role:santri,pengurus,degur,wali')->group(function () {
             Route::get('/data/log-keluar-masuk', [SantriLogKeluarMasukController::class, 'index'])->name('data.log');
+        });
+
+        Route::middleware('role:santri')->group(function () {
             Route::post('/data/log-keluar-masuk', [SantriLogKeluarMasukController::class, 'store'])->name('data.log.store');
             Route::patch('/data/log-keluar-masuk/{logKeluarMasuk}', [SantriLogKeluarMasukController::class, 'update'])->name('data.log.update');
             Route::delete('/data/log-keluar-masuk/{logKeluarMasuk}', [SantriLogKeluarMasukController::class, 'destroy'])->name('data.log.destroy');

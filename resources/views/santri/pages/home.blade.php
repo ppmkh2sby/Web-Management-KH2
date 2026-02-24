@@ -11,10 +11,7 @@
   ];
 
   $logStatusStyles = [
-    'disetujui' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'proses' => 'bg-amber-50 text-amber-700 border-amber-200',
     'tercatat' => 'bg-blue-50 text-blue-700 border-blue-200',
-    'ditolak' => 'bg-rose-50 text-rose-700 border-rose-200',
   ];
 
   $kafarahProgress = $kafarahStats['total_kafarah'] > 0
@@ -69,8 +66,8 @@
             <p class="mt-1 text-xl font-semibold text-gray-900">{{ $progressStats['average'] }}%</p>
           </div>
           <div class="rounded-xl border border-gray-100 bg-white p-3">
-            <p class="text-xs text-gray-500">Log Proses</p>
-            <p class="mt-1 text-xl font-semibold text-gray-900">{{ $logStats['proses'] ?? 0 }}</p>
+            <p class="text-xs text-gray-500">Log Tercatat</p>
+            <p class="mt-1 text-xl font-semibold text-gray-900">{{ $logStats['tercatat'] ?? ($logStats['total'] ?? 0) }}</p>
           </div>
         </div>
       </div>
@@ -123,7 +120,7 @@
     <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <p class="text-xs font-medium text-gray-500">Total Log Keluar/Masuk</p>
       <p class="mt-2 text-2xl font-semibold text-gray-900">{{ $logStats['total'] ?? 0 }}</p>
-      <p class="mt-1 text-xs text-amber-700">{{ $logStats['proses'] ?? 0 }} menunggu proses</p>
+      <p class="mt-1 text-xs text-blue-700">{{ $logStats['tercatat'] ?? ($logStats['total'] ?? 0) }} data tercatat</p>
     </div>
   </div>
 
@@ -263,7 +260,7 @@
         @endif
       </div>
       <div class="mt-4 flex flex-wrap gap-2">
-        @foreach(['disetujui', 'proses', 'tercatat', 'ditolak'] as $status)
+        @foreach(['tercatat'] as $status)
           <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold {{ $logStatusStyles[$status] ?? 'bg-gray-50 text-gray-700 border-gray-200' }}">
             {{ ucfirst($status) }}: {{ $logStats[$status] ?? 0 }}
           </span>

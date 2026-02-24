@@ -10,6 +10,7 @@ use App\Models\LogKeluarMasuk;
 use App\Models\Presensi;
 use App\Models\ProgressKeilmuan;
 use App\Models\Santri;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -50,10 +51,22 @@ class DashboardController extends Controller
         return class_exists($class) ? $class::query() : null;
     }
 
-    public function home(): View
+    private function firstWaliChildCode(): ?string
+    {
+        return Auth::user()
+            ?->waliOf()
+            ->orderBy('santris.nama_lengkap')
+            ->value('santris.code');
+    }
+
+    public function home(): View|RedirectResponse
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
+        if ($user && $user->role === Role::WALI) {
+            return redirect()->route('wali.main');
+        }
+
         $santriOwned = $user?->santri;
         $isSantriContext = (bool) ($user && $user->role === Role::SANTRI && $santriOwned);
         $santri = $isSantriContext ? $santriOwned->loadMissing(['kelas', 'walis', 'user']) : $this->loadSantri();
@@ -180,8 +193,16 @@ class DashboardController extends Controller
         return view('santri.pages.setting');
     }
 
-    public function presensi(): View
+    public function presensi(): View|RedirectResponse
     {
+        if (Auth::user()?->role === Role::WALI) {
+            $firstChildCode = $this->firstWaliChildCode();
+            if (filled($firstChildCode)) {
+                return redirect()->route('wali.anak.presensi', ['santriCode' => $firstChildCode]);
+            }
+            return redirect()->route('profile.edit')->with('status', 'Akun wali belum terhubung ke data anak.');
+        }
+
         $santri = $this->loadSantri();
         $K = $this->q(Kehadiran::class);
         $data = $K && $santri?->id ? (clone $K)->where('santri_id',$santri->id)->latest('tanggal')->take(30)->get() : collect();

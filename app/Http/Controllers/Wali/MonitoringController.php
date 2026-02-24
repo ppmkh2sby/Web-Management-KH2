@@ -7,6 +7,7 @@ use App\Models\Kehadiran;
 use App\Models\Santri;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,22 @@ use Illuminate\View\View;
 
 class MonitoringController extends Controller
 {
+    public function main(): RedirectResponse
+    {
+        $firstChildCode = Auth::user()
+            ->waliOf()
+            ->orderBy('santris.nama_lengkap')
+            ->value('santris.code');
+
+        if (! filled($firstChildCode)) {
+            return redirect()
+                ->route('profile.edit')
+                ->with('status', 'Akun wali belum terhubung ke data anak.');
+        }
+
+        return redirect()->route('wali.anak.overview', ['santriCode' => $firstChildCode]);
+    }
+
     /**
      * Ambil daftar santri yang terhubung dengan wali saat ini.
      */
@@ -57,33 +74,53 @@ class MonitoringController extends Controller
     public function overview(string $santriCode): View
     {
         $santri = $this->loadSantri($santriCode);
-        $today = Carbon::today();
-
-        $K = $this->q(Kehadiran::class);
-        $hadir = $K ? (clone $K)->where('santri_id', $santri->id)->whereMonth('tanggal', now()->month)->where('status', 'hadir')->count() : 0;
-        $izin = $K ? (clone $K)->where('santri_id', $santri->id)->whereMonth('tanggal', now()->month)->where('status', 'izin')->count() : 0;
-        $alpa = $K ? (clone $K)->where('santri_id', $santri->id)->whereMonth('tanggal', now()->month)->where('status', 'alpa')->count() : 0;
-
-        $J = $this->q('App\\Models\\JadwalPelajaran');
-        $jadwalHariIni = $J
-            ? (clone $J)->with(['mapel', 'guru'])->where('kelas_id', optional($santri->kelas)->id)->whereDate('tanggal', $today)->orderBy('jam_mulai')->get()
-            : collect();
-
-        $P = $this->q('App\\Models\\Pengumuman');
-        $pengumuman = $P ? (clone $P)->latest()->take(4)->get() : collect();
-
-        $emailVerified = ! is_null(Auth::user()->email_verified_at);
         $santriList = $this->connectedChildren();
+        $emailVerified = ! is_null(Auth::user()->email_verified_at);
+
+        $kehadiranRows = $this->fetchKehadiran($santri);
+        $hadir = $kehadiranRows->where('status', 'hadir')->count();
+        $izin = $kehadiranRows->where('status', 'izin')->count();
+        $alpa = $kehadiranRows->where('status', 'alpa')->count();
+        $kehadiranTotal = $kehadiranRows->count();
+        $kehadiranPercent = $kehadiranTotal > 0 ? (int) round(($hadir / $kehadiranTotal) * 100) : 0;
+        $kehadiranRecent = $kehadiranRows->take(5);
+
+        $progressItems = $this->fetchProgress($santri);
+        $progressTotal = $progressItems->count();
+        $progressCompleted = $progressItems->filter(fn ($item) => (int) ($item->persentase ?? 0) >= 100)->count();
+        $progressInProgress = max($progressTotal - $progressCompleted, 0);
+        $progressAverage = $progressTotal > 0 ? (int) round($progressItems->avg(fn ($item) => (int) ($item->persentase ?? 0))) : 0;
+        $progressRecent = $progressItems
+            ->sortByDesc(fn ($item) => $item->terakhir_setor ?? $item->updated_at ?? null)
+            ->take(5)
+            ->values();
+
+        $logRows = $this->fetchLogKeluarMasuk($santri);
+        $logTotal = $logRows->count();
+        $logThisMonth = $logRows->filter(function ($row) {
+            $date = $row->tanggal_pengajuan ?? null;
+            return $date && Carbon::parse($date)->isSameMonth(now());
+        })->count();
+        $logRecent = $logRows->take(5);
 
         return view('wali.pages.overview', compact(
             'santri',
             'santriList',
+            'emailVerified',
             'hadir',
             'izin',
             'alpa',
-            'jadwalHariIni',
-            'pengumuman',
-            'emailVerified'
+            'kehadiranTotal',
+            'kehadiranPercent',
+            'kehadiranRecent',
+            'progressTotal',
+            'progressCompleted',
+            'progressInProgress',
+            'progressAverage',
+            'progressRecent',
+            'logTotal',
+            'logThisMonth',
+            'logRecent'
         ));
     }
 
@@ -191,39 +228,8 @@ class MonitoringController extends Controller
     private function fetchLogKeluarMasuk(Santri $santri): Collection
     {
         $LogModel = $this->q(\App\Models\LogKeluarMasuk::class);
-        $logs = $LogModel
+        return $LogModel
             ? (clone $LogModel)->where('santri_id', $santri->id)->latest('tanggal_pengajuan')->get()
             : collect();
-
-        if ($logs->isEmpty()) {
-            $logs = collect([
-                [
-                    'tanggal_pengajuan' => Carbon::today()->subDays(1)->toDateString(),
-                    'jenis' => 'Keluar Pondok',
-                    'rentang' => '13.00 - 16.00',
-                    'status' => 'disetujui',
-                    'catatan' => 'Kontrol kesehatan di Puskesmas',
-                    'petugas' => 'Ust. Fathur',
-                ],
-                [
-                    'tanggal_pengajuan' => Carbon::today()->subDays(5)->toDateString(),
-                    'jenis' => 'Cuti Akhir Pekan',
-                    'rentang' => 'Sabtu - Ahad',
-                    'status' => 'proses',
-                    'catatan' => 'Undangan keluarga',
-                    'petugas' => 'Ust. Dani',
-                ],
-                [
-                    'tanggal_pengajuan' => Carbon::today()->subDays(8)->toDateString(),
-                    'jenis' => 'Kembali ke Pondok',
-                    'rentang' => '21.15',
-                    'status' => 'tercatat',
-                    'catatan' => 'Setelah bakti sosial',
-                    'petugas' => 'Satpam Utama',
-                ],
-            ])->map(fn ($row) => (object) $row);
-        }
-
-        return $logs;
     }
 }
