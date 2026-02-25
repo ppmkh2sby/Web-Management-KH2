@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Kelas extends Model
 {
@@ -12,5 +13,10 @@ class Kelas extends Model
     public function santris()
     {
         return $this->hasMany(Santri::class, 'kelas_id');
+    }
+
+    public function degurs(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'degur_kelas', 'kelas_id', 'user_id')->withTimestamps();
     }
 }

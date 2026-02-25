@@ -6,7 +6,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\Enum\Role;
+use App\Models\Kelas;
 use App\Models\Santri;
 use App\Models\Santri as SantriModel;
 
@@ -134,6 +136,11 @@ class User extends Authenticatable
     
     public function waliOf(){
         return $this->belongsToMany(Santri::class, 'santri_wali', 'wali_user_id', 'santri_id')->withTimestamps();
+    }
+
+    public function kelasAjar(): BelongsToMany
+    {
+        return $this->belongsToMany(Kelas::class, 'degur_kelas', 'user_id', 'kelas_id')->withTimestamps();
     }
 
     /**

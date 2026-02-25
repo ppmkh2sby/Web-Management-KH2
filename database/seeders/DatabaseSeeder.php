@@ -17,8 +17,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             InitialSetupSeeder::class,
-            SantriWaliSeeder::class,
             FullSantriImportSeeder::class,
+            SantriWaliSeeder::class,
         ]);
     }
 }

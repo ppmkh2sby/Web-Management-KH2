@@ -116,37 +116,47 @@
         <span class="mx-2">›</span>
         <span class="text-gray-900">Kehadiran Santri</span>
       </div>
+      @php
+        $genderSwitchQuery = request()->query();
+        unset($genderSwitchQuery['page']);
+      @endphp
       <div class="flex items-start justify-between gap-4">
         <div>
           <h1 class="text-[20px] font-semibold text-gray-900">Kehadiran Santri</h1>
           <p class="text-[10px] text-gray-600 mt-0.5">Lorem ipsum dolor sit amet, consectetur. Volutpat tellus facilisi nulla commodo non libero quis.</p>
+          <div class="mt-2 inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
+            @foreach(['all' => 'Semua', 'putra' => 'Putra', 'putri' => 'Putri'] as $genderKey => $genderLabel)
+              <a href="{{ route('santri.presensi.index', array_merge($genderSwitchQuery, ['mode' => 'team', 'gender_filter' => $genderKey])) }}"
+                 class="inline-flex min-w-[66px] items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold transition {{ ($genderFilter ?? 'all') === $genderKey ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-700 hover:bg-white' }}">
+                {{ $genderLabel }}
+              </a>
+            @endforeach
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <div class="relative">
-            <form method="GET" action="{{ route('santri.presensi.index') }}">
+            <form id="team-search-form" method="GET" action="{{ route('santri.presensi.index') }}">
               <input type="hidden" name="mode" value="{{ $mode }}" />
-              @if($isStaffViewer)
-                <input type="hidden" name="gender_filter" value="{{ $genderFilter ?? 'all' }}" />
-              @endif
+              <input type="hidden" name="gender_filter" value="{{ $genderFilter ?? 'all' }}" />
               <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
               <input id="search-input" name="search" value="{{ $search }}" placeholder="Cari santri" 
                      class="rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-2 text-sm placeholder:text-gray-400 focus:ring-1 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all w-72" />
             </form>
           </div>
-          @if($canManage)
+          @if($canTeamFilter ?? false)
           <button type="button" id="filter-button-team"
                   class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm relative">
             <i data-lucide="filter" class="w-4 h-4"></i>
             Filter
             @php
-              $activeFiltersCount = count($statusFilter) + count($kategoriFilter) + count($waktuFilter) + count($timFilter) + ($tanggalFilter ? 1 : 0);
+              $activeFiltersCount = count($statusFilter) + count($kategoriFilter) + count($waktuFilter) + count($timFilter) + ($tanggalFilter ? 1 : 0) + (($genderFilter ?? 'all') !== 'all' ? 1 : 0);
             @endphp
             @if($activeFiltersCount > 0)
               <span class="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-semibold text-white">{{ $activeFiltersCount }}</span>
             @endif
           </button>
           @endif
-          @if($canManage)
+          @if(($canInput ?? false))
             <a href="{{ route('santri.presensi.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
               <i data-lucide="plus" class="w-4 h-4"></i>
               Input Kehadiran
@@ -204,7 +214,9 @@
                   <i data-lucide="chevrons-up-down" class="w-2.5 h-2.5 text-gray-500"></i>
                 </div>
               </th>
-              <th class="px-3 py-1.5 w-10 text-center"></th>
+              @if($canManage)
+                <th class="px-3 py-1.5 w-10 text-center"></th>
+              @endif
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
@@ -243,22 +255,24 @@
                 <td class="px-3 py-1.5">
                   <span class="text-gray-600 text-[10px] leading-3">{{ $row->catatan ?? '-' }}</span>
                 </td>
-                <td class="px-3 py-1.5 text-center">
-                  <button type="button"
-                          class="text-gray-400 hover:text-gray-600 p-1 action-menu-button"
-                          data-id="{{ $row->id }}"
-                          data-tanggal="{{ $row->created_at->format('Y-m-d') }}"
-                          data-kategori="{{ $row->kegiatan->kategori ?? '' }}"
-                          data-waktu="{{ $row->waktu }}"
-                          data-status="{{ $row->status }}"
-                          data-catatan="{{ $row->catatan }}">
-                    <i data-lucide="more-vertical" class="w-4 h-4"></i>
-                  </button>
-                </td>
+                @if($canManage)
+                  <td class="px-3 py-1.5 text-center">
+                    <button type="button"
+                            class="text-gray-400 hover:text-gray-600 p-1 action-menu-button"
+                            data-id="{{ $row->id }}"
+                            data-tanggal="{{ $row->created_at->format('Y-m-d') }}"
+                            data-kategori="{{ $row->kegiatan->kategori ?? '' }}"
+                            data-waktu="{{ $row->waktu }}"
+                            data-status="{{ $row->status }}"
+                            data-catatan="{{ $row->catatan }}">
+                      <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                    </button>
+                  </td>
+                @endif
               </tr>
             @empty
               <tr>
-                <td colspan="8" class="px-3 py-8 text-center text-gray-500 text-xs">
+                <td colspan="{{ $canManage ? 8 : 7 }}" class="px-3 py-8 text-center text-gray-500 text-xs">
                   Belum ada data kehadiran.
                 </td>
               </tr>
@@ -986,6 +1000,7 @@
     const applyFilter = document.getElementById('apply-filter-team');
     const clearFilters = document.getElementById('clear-filters-team');
     const filterBackdrop = document.getElementById('filter-backdrop-team');
+    const teamSearchForm = document.getElementById('team-search-form');
     const searchInput = document.getElementById('search-input');
     const searchInputMine = document.getElementById('search-input-mine');
 
@@ -1064,19 +1079,22 @@
       });
     }
 
-    // Handle search input
-    if (searchInput) {
-      searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          const params = new URLSearchParams(window.location.search);
-          params.set('mode', 'team');
-          if (searchInput.value.trim()) {
-            params.set('search', searchInput.value.trim());
-          } else {
-            params.delete('search');
-          }
-          window.location.href = `{{ route('santri.presensi.index') }}?${params.toString()}`;
-        }
+    // Handle search input (team mode)
+    const applyTeamSearch = () => {
+      const params = new URLSearchParams(window.location.search);
+      params.set('mode', 'team');
+      if (searchInput && searchInput.value.trim()) {
+        params.set('search', searchInput.value.trim());
+      } else {
+        params.delete('search');
+      }
+      window.location.href = `{{ route('santri.presensi.index') }}?${params.toString()}`;
+    };
+
+    if (teamSearchForm) {
+      teamSearchForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        applyTeamSearch();
       });
     }
 
@@ -1108,7 +1126,7 @@
 </script>
 @endif
 
-@if($mode === 'team')
+@if($mode === 'team' && $canManage)
 {{-- Modal edit/hapus presensi --}}
 <div id="edit-modal" class="fixed inset-0 bg-black/40 z-40 hidden items-center justify-center">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">

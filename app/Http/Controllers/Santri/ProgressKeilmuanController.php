@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Santri;
 use App\Enum\Role;
 use App\Http\Controllers\Controller;
 use App\Models\ProgressKeilmuan;
+use App\Models\Santri;
+use App\Models\User as UserModel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
@@ -28,6 +31,10 @@ class ProgressKeilmuanController extends Controller
             }
 
             return redirect()->route('profile.edit')->with('status', 'Akun wali belum terhubung ke data anak.');
+        }
+
+        if (in_array($user?->role, [Role::DEWAN_GURU, Role::PENGURUS], true)) {
+            return $this->staffIndex($request);
         }
 
         $santri = $this->requireSantri();
@@ -162,6 +169,184 @@ class ProgressKeilmuanController extends Controller
         }
 
         return back()->with('success', 'Progres keilmuan berhasil diperbarui.');
+    }
+
+    public function detail(Request $request, string $santriCode): View
+    {
+        abort_unless(
+            in_array(auth()->user()?->role, [Role::DEWAN_GURU, Role::PENGURUS], true),
+            403
+        );
+
+        $santri = Santri::query()
+            ->with(['kelas', 'user'])
+            ->where('code', $santriCode)
+            ->firstOrFail();
+
+        $items = ProgressKeilmuan::query()
+            ->where('santri_id', $santri->id)
+            ->latest('updated_at')
+            ->get();
+
+        return view('wali.pages.data.progres', [
+            'santri' => $santri,
+            'items' => $items,
+            'isStaffView' => true,
+            'backUrl' => route('santri.data.progres', $request->only(['category', 'gender', 'q', 'page'])),
+        ]);
+    }
+
+    private function staffIndex(Request $request): View
+    {
+        $category = $this->resolveCategory((string) $request->input('category'));
+        $genderFilter = strtolower(trim((string) $request->input('gender', 'all')));
+        if (! in_array($genderFilter, ['all', 'putra', 'putri'], true)) {
+            $genderFilter = 'all';
+        }
+        $modules = collect($this->modules($category));
+        $moduleCount = $modules->count();
+
+        $santriList = Santri::query()
+            ->with('kelas')
+            ->orderBy('nama_lengkap')
+            ->get(['id', 'nama_lengkap', 'code', 'tim', 'gender', 'kelas_id']);
+
+        $progressBySantri = ProgressKeilmuan::query()
+            ->where('level', $category)
+            ->whereIn('santri_id', $santriList->pluck('id'))
+            ->latest('updated_at')
+            ->get()
+            ->groupBy('santri_id');
+
+        $normalize = static fn (?string $value): string => strtolower(
+            trim((string) preg_replace('/\s+/', ' ', (string) $value))
+        );
+
+        $rows = $santriList->map(function (Santri $santri) use ($progressBySantri, $modules, $moduleCount, $category, $normalize) {
+            $records = collect($progressBySantri->get($santri->id, collect()));
+
+            $recordMap = [];
+            foreach ($records as $record) {
+                $titleRaw = (string) ($record->judul ?? '');
+                $titleKey = $normalize($titleRaw);
+                if ($titleKey !== '' && ! array_key_exists($titleKey, $recordMap)) {
+                    $recordMap[$titleKey] = $record;
+                }
+
+                if ($category === self::CATEGORY_QURAN && preg_match('/juz\s*([0-9]{1,2})/i', $titleRaw, $match)) {
+                    $juzNumber = (int) ($match[1] ?? 0);
+                    if ($juzNumber >= 1 && $juzNumber <= 30) {
+                        $recordMap[$normalize('Juz ' . $juzNumber)] = $record;
+                    }
+                }
+            }
+
+            $completed = 0;
+            $inProgress = 0;
+            $sumPercent = 0;
+
+            foreach ($modules as $module) {
+                $title = (string) ($module['judul'] ?? '');
+                $defaultTarget = (int) ($module['target'] ?? 0);
+                $record = $recordMap[$normalize($title)] ?? null;
+                $target = (int) ($record->target ?? $defaultTarget);
+                $capaian = max((int) ($record->capaian ?? 0), 0);
+                $percent = $target > 0 ? (int) min(100, round(($capaian / $target) * 100)) : 0;
+
+                $sumPercent += $percent;
+                if ($percent >= 100) {
+                    $completed++;
+                } elseif ($percent > 0) {
+                    $inProgress++;
+                }
+            }
+
+            $latestUpdate = $records
+                ->map(fn ($item) => $item->terakhir_setor ?? $item->updated_at)
+                ->filter()
+                ->max();
+
+            $teamName = trim((string) ($santri->tim_resolved ?? $santri->tim ?? ''));
+
+            return [
+                'id' => $santri->id,
+                'code' => $santri->code,
+                'nama' => $santri->nama_lengkap ?? '-',
+                'gender' => $this->normalizeGender((string) ($santri->gender ?? '')),
+                'kelas' => $santri->kelas?->nama ?? '-',
+                'tim' => $teamName !== '' ? $teamName : '-',
+                'tim_badge' => UserModel::teamAbbreviation($teamName),
+                'completed' => $completed,
+                'in_progress' => $inProgress,
+                'average' => $moduleCount > 0 ? (int) round($sumPercent / $moduleCount) : 0,
+                'updated_at' => $latestUpdate,
+            ];
+        })->values();
+
+        $searchQuery = trim((string) $request->input('q', ''));
+        $filteredRows = $rows;
+        if ($genderFilter !== 'all') {
+            $filteredRows = $filteredRows
+                ->filter(fn (array $row) => ($row['gender'] ?? '') === $genderFilter)
+                ->values();
+        }
+
+        if ($searchQuery !== '') {
+            $needle = strtolower($searchQuery);
+            $filteredRows = $filteredRows->filter(function (array $row) use ($needle) {
+                $haystack = strtolower(implode(' ', [
+                    (string) ($row['nama'] ?? ''),
+                    (string) ($row['kelas'] ?? ''),
+                    (string) ($row['tim'] ?? ''),
+                    (string) ($row['code'] ?? ''),
+                ]));
+
+                return str_contains($haystack, $needle);
+            })->values();
+        }
+
+        $stats = [
+            'totalSantri' => $filteredRows->count(),
+            'activeSantri' => $filteredRows->filter(fn ($row) => (($row['completed'] ?? 0) + ($row['in_progress'] ?? 0)) > 0)->count(),
+            'average' => $filteredRows->isNotEmpty() ? (int) round($filteredRows->avg('average')) : 0,
+            'completedModules' => (int) $filteredRows->sum('completed'),
+            'moduleCount' => $moduleCount,
+        ];
+
+        $perPage = 5;
+        $page = max((int) $request->input('page', 1), 1);
+        $rowsPage = new LengthAwarePaginator(
+            $filteredRows->forPage($page, $perPage)->values(),
+            $filteredRows->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        return view('santri.pages.data.progres-staff', [
+            'category' => $category,
+            'rows' => $rowsPage,
+            'stats' => $stats,
+            'searchQuery' => $searchQuery,
+            'genderFilter' => $genderFilter,
+        ]);
+    }
+
+    private function normalizeGender(string $value): string
+    {
+        $gender = strtolower(trim($value));
+        if (in_array($gender, ['putra', 'l', 'lk', 'laki-laki', 'laki', 'male', 'ikhwan'], true)) {
+            return 'putra';
+        }
+
+        if (in_array($gender, ['putri', 'p', 'pr', 'perempuan', 'female', 'akhwat'], true)) {
+            return 'putri';
+        }
+
+        return '';
     }
 
     private function buildStats(Collection $items): array

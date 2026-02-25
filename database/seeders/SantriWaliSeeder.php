@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enum\Role;
+use App\Models\Kelas;
 use App\Models\Santri;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -50,9 +51,9 @@ class SantriWaliSeeder extends Seeder
                 'role' => Role::DEWAN_GURU,
                 'type' => 'degur',
                 'members' => [
-                    ['code' => '0235499001', 'name' => 'Amir'],
-                    ['code' => '0235499002', 'name' => 'Anton'],
-                    ['code' => '0235499003', 'name' => 'Ridho'],
+                    ['code' => '0235499001', 'name' => 'Amir', 'kelas' => ['Bacaan', 'Pegon']],
+                    ['code' => '0235499002', 'name' => 'Anton', 'kelas' => ['Cepatan']],
+                    ['code' => '0235499003', 'name' => 'Ridho', 'kelas' => ['Lambatan']],
                 ],
             ],
             [
@@ -70,7 +71,11 @@ class SantriWaliSeeder extends Seeder
 
         foreach ($staffGroups as $group) {
             foreach ($group['members'] as $member) {
-                $this->upsertUser($member, $group['role'], $passwordHash, $group['type']);
+                $staffUser = $this->upsertUser($member, $group['role'], $passwordHash, $group['type']);
+
+                if ($group['role'] === Role::DEWAN_GURU) {
+                    $this->syncDegurKelas($staffUser, (array) ($member['kelas'] ?? []));
+                }
             }
         }
     }
@@ -112,5 +117,25 @@ class SantriWaliSeeder extends Seeder
         $cleanName = trim($santriName) === '' ? 'Santri' : trim($santriName);
 
         return 'Wali_' . str_replace(' ', '_', $cleanName);
+    }
+
+    /**
+     * @param array<int, string> $kelasNames
+     */
+    private function syncDegurKelas(User $degur, array $kelasNames): void
+    {
+        $kelasNames = collect($kelasNames)
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $kelasIds = Kelas::query()
+            ->whereIn('nama', $kelasNames)
+            ->pluck('id')
+            ->all();
+
+        $degur->kelasAjar()->sync($kelasIds);
     }
 }

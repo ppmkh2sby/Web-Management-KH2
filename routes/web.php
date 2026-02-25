@@ -66,9 +66,16 @@ Route::middleware(['auth'])
             Route::get('/data/progres-keilmuan', [SantriProgressKeilmuanController::class, 'index'])->name('data.progres');
         });
 
+        Route::middleware('role:pengurus,degur')->group(function () {
+            Route::get('/data/progres-keilmuan/{santriCode}/detail', [SantriProgressKeilmuanController::class, 'detail'])->name('data.progres.detail');
+        });
+
         Route::middleware('role:santri,pengurus,degur')->group(function () {
             Route::post('/data/progres-keilmuan/sync', [SantriProgressKeilmuanController::class, 'sync'])->name('data.progres.sync');
             Route::resource('presensi', SantriPresensiController::class)->names('presensi')->only(['index','show','store','update','destroy','create']);
+        });
+
+        Route::middleware('role:santri')->group(function () {
             Route::resource('kafarah', SantriKafarahController::class)->names('kafarah')->only(['index','show','store','update','destroy','create']);
         });
 

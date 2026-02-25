@@ -49,6 +49,12 @@
     $santriTeam = trim((string) optional(\App\Models\Santri::where('code', $activeChildCode)->first())->tim ?? '');
   }
   $santriTeamBadge = \App\Models\User::teamAbbreviation($santriTeam);
+  $sidebarRoleCaption = match ($roleValue) {
+    \App\Enum\Role::DEWAN_GURU->value => 'Dewan Guru KH2',
+    \App\Enum\Role::PENGURUS->value => 'Pengurus KH2',
+    \App\Enum\Role::WALI->value => 'Wali Santri KH2',
+    default => 'Tim: ' . ($santriTeam !== null && $santriTeam !== '' ? $santriTeam : '-'),
+  };
 @endphp
   <div class="layout-shell min-h-screen p-5">
     <div class="layout-grid grid grid-cols-[280px_1fr] gap-5">
@@ -122,6 +128,9 @@
                 </li>
                 @php
                   $isKetertibanUser = auth()->user()?->isKetertiban();
+                  $isStaffRole = in_array($roleValue, [\App\Enum\Role::PENGURUS->value, \App\Enum\Role::DEWAN_GURU->value], true);
+                  $defaultPresensiMode = $isStaffRole ? 'team' : 'mine';
+                  $isPresensiPrimaryActive = request()->routeIs('santri.presensi.index') && request()->query('mode', $defaultPresensiMode) === $defaultPresensiMode;
                   $teamFeatureBadge = $santriTeamBadge !== '' ? $santriTeamBadge : 'KTB';
                 @endphp
                 <li>
@@ -133,14 +142,16 @@
                     <i :class="presensiOpen ? 'rotate-180' : ''" data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform"></i>
                   </button>
                   <div x-show="presensiOpen" x-transition class="pl-12 pr-4 pt-1 pb-1 space-y-0.5">
-                    <a href="{{ route('santri.presensi.index', ['mode' => 'mine']) }}"
-                       class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'mine'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
-                      Kehadiran Saya
+                    <a href="{{ route('santri.presensi.index', ['mode' => $defaultPresensiMode]) }}"
+                       class="block rounded-lg px-3 py-2 text-sm {{ $isPresensiPrimaryActive ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                      {{ $isStaffRole ? 'Kehadiran Santri' : 'Kehadiran Saya' }}
                     </a>
-                    <a href="{{ route('santri.kafarah.index', ['mode' => 'mine']) }}"
-                       class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.kafarah.index', ['mode' => 'mine'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
-                      Kafarah Saya
-                    </a>
+                    @if(!$isStaffRole)
+                      <a href="{{ route('santri.kafarah.index', ['mode' => 'mine']) }}"
+                         class="block rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.kafarah.index', ['mode' => 'mine'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        Kafarah Saya
+                      </a>
+                    @endif
                     @if($isKetertibanUser)
                       <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}"
                          class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
@@ -156,7 +167,7 @@
                   </div>
                 </li>
                 <li>
-                  <a href="{{ route('santri.data.progres') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.data.progres') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
+                  <a href="{{ route('santri.data.progres') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm {{ request()->routeIs('santri.data.progres*') ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700 hover:bg-gray-50' }}">
                     <i data-lucide="book-open" class="w-5 h-5"></i>
                     <span>Progress Keilmuan</span>
                   </a>
@@ -213,9 +224,7 @@
               </div>
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-semibold leading-tight text-gray-900 truncate">{{ $currentUser?->name ?? 'User' }}</div>
-                <div class="text-xs text-gray-500">
-                  Tim: {{ $santriTeam !== null && $santriTeam !== '' ? $santriTeam : '-' }}
-                </div>
+                <div class="text-xs text-gray-500">{{ $sidebarRoleCaption }}</div>
               </div>
               <button @click="open = !open" class="text-gray-500 hover:text-gray-700">
                 <i data-lucide="more-horizontal" class="w-5 h-5"></i>

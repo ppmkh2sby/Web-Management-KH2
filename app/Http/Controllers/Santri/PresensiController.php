@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Santri;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePresensiRequest;
 use App\Http\Requests\UpdatePresensiRequest;
+use App\Enum\Role;
 use App\Models\Kegiatan;
 use App\Models\Presensi;
 use App\Models\Santri;
@@ -20,18 +21,92 @@ class PresensiController extends Controller
         abort_unless(auth()->check(), 403);
 
         $role = auth()->user()->role;
-        $allowed = [\App\Enum\Role::SANTRI];
+        $allowed = [Role::SANTRI, Role::PENGURUS, Role::DEWAN_GURU];
 
         abort_unless(in_array($role, $allowed, true) || auth()->user()->isKetertiban(), 403);
     }
 
     /**
-     * Backward-compatible guard used by store/update/destroy.
-     * Mirrors ensureAllowedRole so non-santri roles (ketertiban/pengurus/degur) can write presensi.
+     * Guard for write actions. Role gate happens here, then policy enforces
+     * whether the authenticated user can create/update/delete.
      */
     private function ensureSantriRole(): void
     {
         $this->ensureAllowedRole();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function degurKelasIds(): array
+    {
+        $user = auth()->user();
+
+        if (! $user || $user->role !== Role::DEWAN_GURU) {
+            return [];
+        }
+
+        return $user->kelasAjar()
+            ->pluck('kelas.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function canInputClassPresensi(): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->isKetertiban()) {
+            return true;
+        }
+
+        return $user->role === Role::DEWAN_GURU && ! empty($this->degurKelasIds());
+    }
+
+    /**
+     * Pastikan santri yang diinput sesuai scope writer.
+     *
+     * Ketertiban boleh semua santri.
+     * Dewan guru hanya boleh santri dari kelas yang diampu.
+     *
+     * @param array<int, int|string> $santriIds
+     */
+    private function assertWritableSantriIds(array $santriIds): void
+    {
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        if ($user->isKetertiban()) {
+            return;
+        }
+
+        if ($user->role === Role::DEWAN_GURU) {
+            $kelasIds = $this->degurKelasIds();
+            abort_if(empty($kelasIds), 403, 'Akun dewan guru belum ditautkan ke kelas ajar.');
+
+            $requestedIds = collect($santriIds)
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values();
+
+            if ($requestedIds->isEmpty()) {
+                return;
+            }
+
+            $allowedCount = Santri::query()
+                ->whereIn('id', $requestedIds)
+                ->whereIn('kelas_id', $kelasIds)
+                ->count();
+
+            abort_if($allowedCount !== $requestedIds->count(), 403, 'Anda hanya bisa menginput santri sesuai kelas yang diampu.');
+            return;
+        }
+
+        abort(403, 'Role ini tidak dapat menginput presensi kelas.');
     }
 
     public function index(): View
@@ -41,16 +116,23 @@ class PresensiController extends Controller
 
         $user = auth()->user();
         $isKetertiban = $user->isKetertiban();
+        $isDegur = $user->role === Role::DEWAN_GURU;
+        $isStaffViewer = in_array($user->role, [Role::PENGURUS, Role::DEWAN_GURU], true);
         $santriId = $user->santri?->id;
+        $degurKelasIds = $this->degurKelasIds();
+        $canInputClass = $this->canInputClassPresensi();
 
-        $mode = request()->get('mode', $isKetertiban ? 'input' : 'mine');
+        $mode = request()->get('mode', $isKetertiban ? 'input' : ($isStaffViewer ? 'team' : 'mine'));
         if (!in_array($mode, ['input', 'mine', 'team'], true)) {
-            $mode = $isKetertiban ? 'input' : 'mine';
+            $mode = $isKetertiban ? 'input' : ($isStaffViewer ? 'team' : 'mine');
         }
 
         // Paksa santri non-KTB hanya ke mode "mine"
-        if ($user->role === \App\Enum\Role::SANTRI && ! $isKetertiban) {
+        if ($user->role === Role::SANTRI && ! $isKetertiban) {
             $mode = 'mine';
+        }
+        if ($isStaffViewer) {
+            $mode = 'team';
         }
 
         // Gender filter for ketertiban (putra/putri)
@@ -59,36 +141,13 @@ class PresensiController extends Controller
             $gender = 'putra';
         }
 
-        $putraNames = [
-            'Alwida Rahmat',
-            "Fahmi Rosyidin Al'Ulya",
-            'Keisha Zafif Fahrezi',
-            'Maestro Rafa Agniya',
-            'Muhammad Farizky Alfath Muhardian Putra',
-            'Muhammad Farrel Al-Aqso',
-            'Muhammad Setyo Arfan Ibrahim',
-            'Zaky Afifi Arif',
-        ];
-
-        $putriNames = [
-            'Ayesha Nayyara Putri Wuryadi',
-            'Azzahra Jamalullaily Mafaza',
-            'Cherfine An-Nisaul Auliya Ulla',
-            'Deven Kartika Wijaya',
-            'Maritza Dara Athifa',
-            'Rara Arimbi Gita Atmodjo',
-            'Renata Keysha Azalia',
-            'Syahdinda Sherlyta Laura',
-            'Zahra Suciana Tri Amma Maretha',
-        ];
-
         $query = Presensi::with(['santri', 'kegiatan'])->latest('updated_at');
 
         if ($isKetertiban && $mode === 'input') {
             $query->whereHas('santri', function ($q) use ($gender) {
                 $q->where('gender', $gender);
             });
-        } elseif ($mode === 'mine' && $user->role === \App\Enum\Role::SANTRI) {
+        } elseif ($mode === 'mine' && $user->role === Role::SANTRI) {
             abort_unless($santriId, 403);
             $query->where('santri_id', $santriId);
 
@@ -129,7 +188,10 @@ class PresensiController extends Controller
                 });
             }
         } elseif ($mode === 'team') {
-            // Show all santri - accessible by ketertiban, pengurus, degur
+            if ($isDegur) {
+                abort_if(empty($degurKelasIds), 403, 'Akun dewan guru belum ditautkan ke kelas ajar.');
+                $query->whereHas('santri', fn ($sq) => $sq->whereIn('kelas_id', $degurKelasIds));
+            }
         } else {
             abort(403);
         }
@@ -201,7 +263,7 @@ class PresensiController extends Controller
         }
 
         // Different pagination per mode
-        $perPage = $mode === 'mine' ? 6 : 11;
+        $perPage = $mode === 'mine' ? 6 : 10;
         $presensis = $query->paginate($perPage)->withQueryString();
         $santriList = collect();
         if ($isKetertiban) {
@@ -249,14 +311,16 @@ class PresensiController extends Controller
             'presensis' => $presensis,
             'santriList' => $santriList,
             'canManage' => $isKetertiban,
+            'canInput' => $canInputClass,
             'canEdit' => $isKetertiban && $mode === 'input',
+            'canTeamFilter' => $mode === 'team' && ($isKetertiban || $isStaffViewer),
             'mode' => $mode,
             'gender' => $gender,
             'statuses' => Presensi::STATUS,
             'kategoriOptions' => Kegiatan::KATEGORI,
             'waktuOptions' => Presensi::WAKTU,
             'search' => $search,
-            'isStaffViewer' => false,
+            'isStaffViewer' => $isStaffViewer,
             'genderFilter' => $mode === 'team' ? request()->get('gender_filter', 'all') : null,
             'kategoriFilter' => $mode === 'team' ? (array)request()->get('kategori_filter', []) : [],
             'waktuFilter' => $mode === 'team' ? (array)request()->get('waktu_filter', []) : [],
@@ -275,6 +339,7 @@ class PresensiController extends Controller
 
         $user = auth()->user();
         $isKetertiban = $user->isKetertiban();
+        $isDegur = $user->role === Role::DEWAN_GURU;
 
         // Gender filter for ketertiban (putra/putri/all)
         $gender = request()->get('gender', 'putra');
@@ -282,16 +347,47 @@ class PresensiController extends Controller
             $gender = 'putra';
         }
 
-        // Ambil semua santri per gender langsung dari DB
-        $santriPaginated = collect();
-        if ($isKetertiban) {
-            $santriPaginated = Santri::query()
-                ->when($gender !== 'all', fn ($q) => $q->where('gender', $gender))
-                ->orderBy('nama_lengkap')
-                ->select(['id', 'nama_lengkap', 'tim', 'code'])
-                ->paginate(100)
-                ->withQueryString();
+        $managedKelas = collect();
+        $selectedKelasId = null;
+        $kelasNameMap = [];
+
+        if ($isDegur) {
+            $managedKelas = $user->kelasAjar()
+                ->orderBy('nama')
+                ->get(['kelas.id', 'nama']);
+            abort_if($managedKelas->isEmpty(), 403, 'Akun dewan guru belum ditautkan ke kelas ajar.');
+
+            $kelasNameMap = $managedKelas->pluck('nama', 'id')->all();
+            $selectedKelasId = (int) request()->integer('kelas_id', (int) $managedKelas->first()->id);
+            if (!array_key_exists($selectedKelasId, $kelasNameMap)) {
+                $selectedKelasId = (int) $managedKelas->first()->id;
+            }
         }
+
+        $santriQuery = Santri::query()
+            ->orderBy('nama_lengkap')
+            ->select(['id', 'nama_lengkap', 'tim', 'code', 'kelas_id']);
+
+        if ($isKetertiban) {
+            $santriQuery->when($gender !== 'all', fn ($q) => $q->where('gender', $gender));
+        } elseif ($isDegur) {
+            $degurKelasIds = array_keys($kelasNameMap);
+            $santriQuery->whereIn('kelas_id', $degurKelasIds);
+            if ($selectedKelasId) {
+                $santriQuery->where('kelas_id', $selectedKelasId);
+            }
+        } else {
+            abort(403, 'Role ini tidak dapat mengakses form input presensi.');
+        }
+
+        $perPage = 100;
+        if ($isDegur) {
+            $perPage = max((clone $santriQuery)->count(), 1);
+        }
+
+        $santriPaginated = $santriQuery
+            ->paginate($perPage)
+            ->withQueryString();
 
         // Stats awal nol, akan berubah live sesuai pilihan
         $stats = [
@@ -303,8 +399,12 @@ class PresensiController extends Controller
 
         return view('santri.presensi.create', [
             'santriList' => $santriPaginated,
-            'canManage' => $isKetertiban,
+            'canManage' => $isKetertiban || $isDegur,
+            'isDegur' => $isDegur,
             'gender' => $gender,
+            'managedKelas' => $managedKelas,
+            'selectedKelasId' => $selectedKelasId,
+            'kelasNameMap' => $kelasNameMap,
             'statuses' => Presensi::STATUS,
             'kategoriOptions' => Kegiatan::KATEGORI,
             'waktuOptions' => Presensi::WAKTU,
@@ -329,6 +429,7 @@ class PresensiController extends Controller
             );
 
             $santriIds = array_keys($data['presensi']);
+            $this->assertWritableSantriIds($santriIds);
             $santriList = Santri::whereIn('id', $santriIds)->get(['id','nama_lengkap']);
 
             foreach ($santriList as $santri) {
@@ -354,6 +455,7 @@ class PresensiController extends Controller
         }
 
         // Single mode (fallback)
+        $this->assertWritableSantriIds([(int) $data['santri_id']]);
         $santri = Santri::findOrFail($data['santri_id']);
 
         $kegiatan = Kegiatan::firstOrCreate(

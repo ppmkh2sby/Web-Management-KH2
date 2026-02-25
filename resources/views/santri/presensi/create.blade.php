@@ -2,7 +2,11 @@
 @section('title', 'Input Kehadiran')
 
 @section('content')
-<div class="space-y-3.5">
+@php
+  $isDegur = $isDegur ?? false;
+  $degurViewportHeight = 'xl:h-[calc(100vh-5rem)]';
+@endphp
+<div class="space-y-3.5 {{ $isDegur ? $degurViewportHeight . ' xl:flex xl:flex-col' : '' }}">
   @if(session('success'))
     <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm">
       {{ session('success') }}
@@ -16,11 +20,11 @@
     </div>
   @endif
 
-  <form method="POST" action="{{ route('santri.presensi.store') }}">
+  <form method="POST" action="{{ route('santri.presensi.store') }}" class="{{ $isDegur ? 'xl:flex-1 xl:min-h-0' : '' }}">
     @csrf
-    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 {{ $isDegur ? 'xl:h-full xl:min-h-0' : '' }}">
       {{-- Main Content: Santri List --}}
-      <div class="space-y-5">
+      <div class="space-y-5 {{ $isDegur ? 'xl:min-h-0 xl:flex xl:flex-col' : '' }}">
         {{-- Header --}}
         <div class="space-y-2">
           <nav class="flex items-center gap-2 text-sm text-gray-500">
@@ -33,22 +37,33 @@
 
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h1 class="text-[22px] font-semibold text-gray-900">Input Kehadiran Santri</h1>
-              <p class="text-sm text-gray-600 max-w-3xl mt-1">Lorem ipsum dolor sit amet consectetur. Volutpat tellus facilisis nulla commodo non tellus quis.</p>
+              <h1 class="text-[22px] font-semibold text-gray-900">{{ $isDegur ? 'Input Kehadiran Kelas' : 'Input Kehadiran Santri' }}</h1>
+              <p class="text-sm text-gray-600 max-w-3xl mt-1">
+                {{ $isDegur ? 'Input presensi santri berdasarkan kelas yang Anda ampu.' : 'Input presensi santri secara massal untuk tim Ketertiban.' }}
+              </p>
             </div>
             <div class="flex items-center gap-2">
-              @foreach(['putra'=>'Putra','putri'=>'Putri'] as $val => $label)
-                <a href="{{ route('santri.presensi.create', ['gender' => $val]) }}"
-                   class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium {{ $gender === $val ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
-                  {{ $label }}
-                </a>
-              @endforeach
+              @if($isDegur)
+                @foreach(($managedKelas ?? collect()) as $kelas)
+                  <a href="{{ route('santri.presensi.create', ['kelas_id' => $kelas->id]) }}"
+                     class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium {{ (int) ($selectedKelasId ?? 0) === (int) $kelas->id ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
+                    {{ $kelas->nama }}
+                  </a>
+                @endforeach
+              @else
+                @foreach(['putra'=>'Putra','putri'=>'Putri'] as $val => $label)
+                  <a href="{{ route('santri.presensi.create', ['gender' => $val]) }}"
+                     class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium {{ $gender === $val ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
+                    {{ $label }}
+                  </a>
+                @endforeach
+              @endif
             </div>
           </div>
         </div>
 
         {{-- Santri Table --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden {{ $isDegur ? 'xl:flex-1 xl:min-h-0 xl:flex xl:flex-col' : '' }}">
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 class="text-base font-semibold text-gray-900">Santri</h2>
             <div class="relative w-72">
@@ -63,10 +78,10 @@
             $statusLabels = ['hadir' => 'Hadir', 'izin' => 'Izin', 'sakit' => 'Sakit', 'alpha' => 'Alpha'];
           @endphp
 
-          <div class="overflow-x-auto">
+          <div class="{{ $isDegur ? 'overflow-auto xl:flex-1 xl:min-h-0' : 'overflow-x-auto' }}">
             <table class="w-full">
               <thead>
-                <tr class="bg-gray-50 border-b border-gray-200">
+                <tr class="bg-gray-50 border-b border-gray-200 {{ $isDegur ? 'sticky top-0 z-10' : '' }}">
                   <th class="px-5 py-3 text-left min-w-[360px]">
                     <div class="flex items-center gap-3 text-sm font-semibold text-gray-700">
                       <input type="checkbox"
@@ -97,7 +112,11 @@
                                value="{{ $santri->id }}" />
                         <div class="flex flex-col">
                           <span class="text-xs font-semibold text-gray-900 leading-5">{{ $santri->nama_lengkap }}</span>
-                          <span class="text-[11px] text-gray-500 mt-0.5">Tim: {{ $santri->tim_resolved ?? '-' }}</span>
+                          @if($isDegur)
+                            <span class="text-[11px] text-gray-500 mt-0.5">Kelas: {{ $kelasNameMap[$santri->kelas_id] ?? '-' }}</span>
+                          @else
+                            <span class="text-[11px] text-gray-500 mt-0.5">Tim: {{ $santri->tim_resolved ?? '-' }}</span>
+                          @endif
                         </div>
                       </div>
                     </td>
@@ -188,34 +207,34 @@
       </div>
 
       {{-- Right Side: Input Form --}}
-      <div class="mt-6 xl:mt-0 xl:sticky xl:top-4 xl:self-start">
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
+      <div class="mt-6 xl:mt-0 {{ $isDegur ? 'xl:h-full xl:min-h-0 xl:self-stretch' : 'xl:sticky xl:top-4 xl:self-start' }}">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm {{ $isDegur ? 'xl:h-full xl:overflow-hidden p-3 space-y-3 flex flex-col' : 'p-4 space-y-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto' }}">
           {{-- Stats Cards --}}
-          <div class="grid grid-cols-4 gap-2.5">
-            <div class="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center">
-              <p class="text-xs font-medium text-gray-600 mb-1.5">Hadir</p>
-              <p class="text-2xl leading-[30px] font-semibold text-gray-900" id="stat-hadir">{{ $stats['hadir'] }}</p>
+          <div class="grid grid-cols-4 {{ $isDegur ? 'gap-2' : 'gap-2.5' }}">
+            <div class="rounded-xl border border-gray-200 bg-white text-center {{ $isDegur ? 'px-2 py-2' : 'px-3 py-3' }}">
+              <p class="font-medium text-gray-600 {{ $isDegur ? 'text-[11px] mb-1' : 'text-xs mb-1.5' }}">Hadir</p>
+              <p class="font-semibold text-gray-900 {{ $isDegur ? 'text-[22px] leading-7' : 'text-2xl leading-[30px]' }}" id="stat-hadir">{{ $stats['hadir'] }}</p>
             </div>
-            <div class="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center">
-              <p class="text-xs font-medium text-gray-600 mb-1.5">Izin</p>
-              <p class="text-2xl leading-[30px] font-semibold text-gray-900" id="stat-izin">{{ $stats['izin'] }}</p>
+            <div class="rounded-xl border border-gray-200 bg-white text-center {{ $isDegur ? 'px-2 py-2' : 'px-3 py-3' }}">
+              <p class="font-medium text-gray-600 {{ $isDegur ? 'text-[11px] mb-1' : 'text-xs mb-1.5' }}">Izin</p>
+              <p class="font-semibold text-gray-900 {{ $isDegur ? 'text-[22px] leading-7' : 'text-2xl leading-[30px]' }}" id="stat-izin">{{ $stats['izin'] }}</p>
             </div>
-            <div class="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center">
-              <p class="text-xs font-medium text-gray-600 mb-1.5">Sakit</p>
-              <p class="text-2xl leading-[30px] font-semibold text-gray-900" id="stat-sakit">{{ $stats['sakit'] }}</p>
+            <div class="rounded-xl border border-gray-200 bg-white text-center {{ $isDegur ? 'px-2 py-2' : 'px-3 py-3' }}">
+              <p class="font-medium text-gray-600 {{ $isDegur ? 'text-[11px] mb-1' : 'text-xs mb-1.5' }}">Sakit</p>
+              <p class="font-semibold text-gray-900 {{ $isDegur ? 'text-[22px] leading-7' : 'text-2xl leading-[30px]' }}" id="stat-sakit">{{ $stats['sakit'] }}</p>
             </div>
-            <div class="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center">
-              <p class="text-xs font-medium text-gray-600 mb-1.5">Alpa</p>
-              <p class="text-2xl leading-[30px] font-semibold text-gray-900" id="stat-alpha">{{ $stats['alpha'] }}</p>
+            <div class="rounded-xl border border-gray-200 bg-white text-center {{ $isDegur ? 'px-2 py-2' : 'px-3 py-3' }}">
+              <p class="font-medium text-gray-600 {{ $isDegur ? 'text-[11px] mb-1' : 'text-xs mb-1.5' }}">Alpa</p>
+              <p class="font-semibold text-gray-900 {{ $isDegur ? 'text-[22px] leading-7' : 'text-2xl leading-[30px]' }}" id="stat-alpha">{{ $stats['alpha'] }}</p>
             </div>
           </div>
 
           {{-- Tanggal --}}
-          <div class="space-y-1.5">
+          <div class="{{ $isDegur ? 'space-y-1' : 'space-y-1.5' }}">
             <label class="block text-sm font-medium text-gray-700">Tanggal</label>
             <div class="relative">
               <input type="date" name="tanggal" value="{{ old('tanggal', date('Y-m-d')) }}" 
-                     class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600" 
+                     class="w-full rounded-lg border border-gray-300 bg-white px-3 {{ $isDegur ? 'py-1.5' : 'py-2' }} text-sm text-gray-900 placeholder:text-gray-500 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600" 
                      placeholder="Pilih Tanggal"
                      required />
               <i data-lucide="calendar" class="w-5 h-5 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
@@ -223,11 +242,11 @@
           </div>
 
           {{-- Kategori Kegiatan --}}
-          <div class="space-y-1.5">
+          <div class="{{ $isDegur ? 'space-y-1' : 'space-y-1.5' }}">
             <label class="block text-sm font-medium text-gray-700">Kategori Kegiatan</label>
             <div class="relative">
               <select name="kategori" 
-                      class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 appearance-none" 
+                      class="w-full rounded-lg border border-gray-300 bg-white px-3 {{ $isDegur ? 'py-1.5' : 'py-2' }} text-sm text-gray-900 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 appearance-none" 
                       required>
                 <option value="" disabled selected>Pilih Kategori</option>
                 @foreach($kategoriOptions as $kategori)
@@ -241,11 +260,11 @@
           </div>
 
           {{-- Waktu --}}
-          <div class="space-y-1.5">
+          <div class="{{ $isDegur ? 'space-y-1' : 'space-y-1.5' }}">
             <label class="block text-sm font-medium text-gray-700">Waktu</label>
             <div class="relative">
               <select name="waktu" 
-                      class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 appearance-none" 
+                      class="w-full rounded-lg border border-gray-300 bg-white px-3 {{ $isDegur ? 'py-1.5' : 'py-2' }} text-sm text-gray-900 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 appearance-none" 
                       required>
                 <option value="" disabled selected>Pilih Waktu</option>
                 @foreach($waktuOptions as $waktu)
@@ -259,16 +278,16 @@
           </div>
 
           {{-- Catatan --}}
-          <div class="space-y-1.5">
+          <div class="{{ $isDegur ? 'space-y-1 flex-1 min-h-0' : 'space-y-1.5' }}">
             <label class="block text-sm font-medium text-gray-700">Catatan (Opsional)</label>
-            <textarea name="catatan" rows="6" 
+            <textarea name="catatan" rows="{{ $isDegur ? 4 : 6 }}" 
                       placeholder="Masukkan catatan" 
-                      class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 resize-none h-[120px]">{{ old('catatan') }}</textarea>
+                      class="w-full rounded-lg border border-gray-300 bg-white px-3 {{ $isDegur ? 'py-2 h-[92px]' : 'py-2.5 h-[120px]' }} text-sm text-gray-900 placeholder:text-gray-500 shadow-sm focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 resize-none">{{ old('catatan') }}</textarea>
           </div>
 
           {{-- Submit Button --}}
           <button type="submit" 
-                  class="w-full rounded-lg bg-emerald-600 border-2 border-white/10 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                  class="w-full rounded-lg bg-emerald-600 border-2 border-white/10 px-3 {{ $isDegur ? 'py-2' : 'py-2.5' }} text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
             Submit Kehadiran
           </button>
         </div>

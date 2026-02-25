@@ -67,12 +67,14 @@ class DashboardController extends Controller
             return redirect()->route('wali.main');
         }
 
+        $isStaffDashboard = (bool) ($user && in_array($user->role, [Role::DEWAN_GURU, Role::PENGURUS], true));
         $santriOwned = $user?->santri;
         $isSantriContext = (bool) ($user && $user->role === Role::SANTRI && $santriOwned);
         $santri = $isSantriContext ? $santriOwned->loadMissing(['kelas', 'walis', 'user']) : $this->loadSantri();
         $santriId = $isSantriContext ? $santriOwned->id : null;
 
-        $displayName = trim((string) ($santriOwned?->nama_lengkap ?? $user?->name ?? 'Santri'));
+        $baseDisplayName = trim((string) ($santriOwned?->nama_lengkap ?? $user?->name ?? 'Santri'));
+        $displayName = $isStaffDashboard ? 'Pak ' . $baseDisplayName : $baseDisplayName;
         $todayLabel = Carbon::now()->translatedFormat('l, d F Y');
 
         $attendanceStats = [
@@ -108,6 +110,36 @@ class DashboardController extends Controller
         )->all();
         $logStats['total'] = 0;
         $logRecent = collect();
+
+        $staffAttendanceStats = [
+            'santriTotal' => 0,
+            'total' => 0,
+            'hadir' => 0,
+            'izin' => 0,
+            'sakit' => 0,
+            'alpha' => 0,
+            'persentase' => 0,
+            'today' => 0,
+            'putra' => 0,
+            'putri' => 0,
+        ];
+        $staffProgressStats = [
+            'total' => 0,
+            'completed' => 0,
+            'in_progress' => 0,
+            'average' => 0,
+            'quran' => 0,
+            'hadits' => 0,
+            'activeSantri' => 0,
+        ];
+        $staffLogStats = [
+            'total' => 0,
+            'today' => 0,
+            'putra' => 0,
+            'putri' => 0,
+        ];
+        $staffRecentLogs = collect();
+        $staffProgressLeaders = collect();
 
         if ($santriId) {
             $attendanceBase = Presensi::query()->where('santri_id', $santriId);
@@ -163,11 +195,88 @@ class DashboardController extends Controller
             $logRecent = $logRows->take(5);
         }
 
+        if ($isStaffDashboard) {
+            $today = Carbon::today();
+            $staffAttendanceStats['santriTotal'] = Santri::query()->count();
+
+            $attendanceBase = Presensi::query();
+            $staffAttendanceStats['total'] = (clone $attendanceBase)->count();
+            $staffAttendanceStats['hadir'] = (clone $attendanceBase)->where('status', 'hadir')->count();
+            $staffAttendanceStats['izin'] = (clone $attendanceBase)->where('status', 'izin')->count();
+            $staffAttendanceStats['sakit'] = (clone $attendanceBase)->where('status', 'sakit')->count();
+            $staffAttendanceStats['alpha'] = (clone $attendanceBase)->where('status', 'alpha')->count();
+            $staffAttendanceStats['persentase'] = $staffAttendanceStats['total'] > 0
+                ? (int) round(($staffAttendanceStats['hadir'] / $staffAttendanceStats['total']) * 100)
+                : 0;
+            $staffAttendanceStats['today'] = (clone $attendanceBase)->whereDate('created_at', $today)->count();
+            $staffAttendanceStats['putra'] = (clone $attendanceBase)->whereHas('santri', fn ($q) => $q->where('gender', 'putra'))->count();
+            $staffAttendanceStats['putri'] = (clone $attendanceBase)->whereHas('santri', fn ($q) => $q->where('gender', 'putri'))->count();
+
+            $staffProgressRows = ProgressKeilmuan::query()
+                ->with('santri:id,nama_lengkap,tim,code')
+                ->get();
+
+            $staffProgressStats['total'] = $staffProgressRows->count();
+            $staffProgressStats['completed'] = $staffProgressRows->filter(fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) >= 100)->count();
+            $staffProgressStats['in_progress'] = $staffProgressRows->filter(fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) > 0 && ($item->persentase ?? 0) < 100)->count();
+            $staffProgressStats['average'] = $staffProgressRows->isNotEmpty()
+                ? (int) round($staffProgressRows->avg(fn (ProgressKeilmuan $item) => $item->persentase ?? 0))
+                : 0;
+            $staffProgressStats['quran'] = $staffProgressRows->where('level', ProgressKeilmuan::LEVEL_QURAN)->count();
+            $staffProgressStats['hadits'] = $staffProgressRows->where('level', ProgressKeilmuan::LEVEL_HADITS)->count();
+            $staffProgressStats['activeSantri'] = $staffProgressRows
+                ->filter(fn (ProgressKeilmuan $item) => (int) ($item->capaian ?? 0) > 0)
+                ->pluck('santri_id')
+                ->unique()
+                ->count();
+
+            $staffProgressLeaders = $staffProgressRows
+                ->groupBy('santri_id')
+                ->map(function ($rows) {
+                    /** @var \Illuminate\Support\Collection<int, ProgressKeilmuan> $rows */
+                    $first = $rows->first();
+                    $santri = $first?->santri;
+
+                    return [
+                        'nama' => $santri?->nama_lengkap ?? '-',
+                        'tim' => $santri?->tim_resolved ?? $santri?->tim ?? '-',
+                        'average' => (int) round($rows->avg(fn (ProgressKeilmuan $item) => $item->persentase ?? 0)),
+                        'completed' => $rows->filter(fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) >= 100)->count(),
+                        'updated_at' => $rows
+                            ->map(fn (ProgressKeilmuan $item) => $item->terakhir_setor ?? $item->updated_at)
+                            ->filter()
+                            ->max(),
+                    ];
+                })
+                ->sortByDesc('average')
+                ->take(8)
+                ->values();
+
+            $staffLogRows = LogKeluarMasuk::query()
+                ->with('santri:id,nama_lengkap,gender,tim,code')
+                ->latest('tanggal_pengajuan')
+                ->latest('id')
+                ->get();
+
+            $staffLogStats['total'] = $staffLogRows->count();
+            $staffLogStats['today'] = $staffLogRows->filter(
+                fn (LogKeluarMasuk $log) => optional($log->tanggal_pengajuan)?->isSameDay($today)
+            )->count();
+            $staffLogStats['putra'] = $staffLogRows->filter(
+                fn (LogKeluarMasuk $log) => strtolower((string) ($log->santri?->gender ?? '')) === 'putra'
+            )->count();
+            $staffLogStats['putri'] = $staffLogRows->filter(
+                fn (LogKeluarMasuk $log) => strtolower((string) ($log->santri?->gender ?? '')) === 'putri'
+            )->count();
+            $staffRecentLogs = $staffLogRows->take(10);
+        }
+
         $emailVerified = !is_null(Auth::user()->email_verified_at);
 
         return view('santri.pages.home', compact(
             'santri',
             'emailVerified',
+            'isStaffDashboard',
             'isSantriContext',
             'displayName',
             'todayLabel',
@@ -178,7 +287,12 @@ class DashboardController extends Controller
             'progressStats',
             'progressRecent',
             'logStats',
-            'logRecent'
+            'logRecent',
+            'staffAttendanceStats',
+            'staffProgressStats',
+            'staffLogStats',
+            'staffRecentLogs',
+            'staffProgressLeaders'
         ));
     }
 

@@ -45,6 +45,10 @@ class PresensiPolicy
             return true;
         }
 
+        if ($user->role === Role::DEWAN_GURU) {
+            return $user->kelasAjar()->exists();
+        }
+
         // Izinkan santri tim KTB
         return $user->role === Role::SANTRI
             && in_array(strtolower($user->teamName()), ['ketertiban', 'ktb'], true);

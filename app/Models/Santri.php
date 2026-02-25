@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $kampus
  * @property string|null $jurusan
  * @property string|null $gender
+ * @property int|null $kelas_id
  */
 class Santri extends Model
 {
@@ -21,6 +22,7 @@ class Santri extends Model
         'code',
         'nama_lengkap',
         'tim',
+        'kelas_id',
         'kampus',
         'jurusan',
         'gender',
