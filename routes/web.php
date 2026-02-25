@@ -1,46 +1,35 @@
 <?php
 
-use App\Enum\Role; // <-- penting: pakai namespace yang benar
-use App\Http\Controllers\Auth\RegisteredSantriController;
-use App\Http\Controllers\Auth\RegisteredWaliController;
-use App\Http\Controllers\Auth\RegisteredStaffController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Santri\DashboardController as SantriDashboard;
-use App\Http\Controllers\DashboardController;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Controllers\Santri\ProgressKeilmuanController as SantriProgressKeilmuanController;
+use App\Http\Controllers\Santri\LogKeluarMasukController as SantriLogKeluarMasukController;
+use App\Http\Controllers\Santri\PresensiController as SantriPresensiController;
+use App\Http\Controllers\Santri\KafarahController as SantriKafarahController;
+use App\Http\Controllers\Wali\MonitoringController as WaliMonitoring;
+use App\Http\Controllers\Ketertiban\KehadiranController as KetertibanKehadiranController;
+use App\Http\Controllers\Ketertiban\KafarahController as KetertibanKafarahController;
 use Illuminate\Support\Facades\Route;
 
 /*
 | Landing (/)
 */
-Route::get('/', function (): RedirectResponse {
-    return auth()->check() ? to_route('dashboard') : to_route('login');
-});
-
-// ---------- Auth (guest) ----------
-Route::middleware('guest')->group(function () {
-    Route::get('/register/santri', [RegisteredSantriController::class, 'create'])->name('register.santri');
-    Route::post('/register/santri', [RegisteredSantriController::class, 'store']);
-
-    Route::get('/register/wali', [RegisteredWaliController::class, 'create'])->name('register.wali');
-    Route::post('/register/wali', [RegisteredWaliController::class, 'store']);
-
-    Route::get('/register/staff', [RegisteredStaffController::class, 'create'])->name('register.staff');
-    Route::post('/register/staff', [RegisteredStaffController::class, 'store']);
-});
+Route::view('/landing', 'landing')->name('landing');
+Route::redirect('/', '/landing');
 
 // ---------- Authenticated (umum) ----------
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Halaman dashboard lama dinonaktifkan, arahkan ke landing.
+    Route::redirect('/dashboard', '/landing')->name('dashboard');
 
     // Wali
     Route::middleware('role:wali')->prefix('wali')->name('wali.')->group(function () {
-        Route::get('/anak-saya', function () {
-            $user = auth()->user();
-            $santriList = $user->waliOf()->with('user')->get();
-            return view('wali.anak', compact('santriList'));
-        })->name('anak');
+        Route::get('/', [WaliMonitoring::class, 'main'])->name('main');
+        Route::get('/anak/{santriCode}', [WaliMonitoring::class, 'overview'])->name('anak.overview');
+        Route::get('/anak/{santriCode}/presensi', [WaliMonitoring::class, 'presensi'])->name('anak.presensi');
+        Route::get('/anak/{santriCode}/progres', [WaliMonitoring::class, 'progres'])->name('anak.progres');
+        Route::get('/anak/{santriCode}/log', [WaliMonitoring::class, 'log'])->name('anak.log');
     });
 
     // Profile
@@ -57,22 +46,48 @@ Route::middleware(['auth','role:admin'])
     });
 
 // ---------- Santri ----------
-Route::middleware(['auth','role:santri'])
+Route::middleware(['auth'])
     ->prefix('santri')->name('santri.')
     ->group(function () {
-        Route::get('/home',     [SantriDashboard::class, 'home'])->name('home');
+        // Beranda bisa diakses oleh semua role setelah login
+        Route::get('/home', [SantriDashboard::class, 'home'])->name('home');
+        // alias: /santri/dashboard -> /santri/home
+        Route::get('/dashboard', fn () => redirect()->route('santri.home'))->name('dashboard');
+
+        // Semua fitur santri dibuka untuk seluruh role (degur/pengurus/wali juga bisa akses)
         Route::get('/profile',  [SantriDashboard::class, 'profile'])->name('profile');
         Route::get('/setting',  [SantriDashboard::class, 'setting'])->name('setting');
 
         Route::prefix('data')->name('data.')->group(function () {
-            Route::get('/',                 [SantriDashboard::class, 'dataIndex'])->name('index');
             Route::get('/presensi',         [SantriDashboard::class, 'presensi'])->name('presensi');
-            Route::get('/progres-keilmuan', [SantriDashboard::class, 'progres'])->name('progres');
-            Route::get('/log-keluar-masuk', [SantriDashboard::class, 'log'])->name('log');
         });
 
-        // alias: /santri/dashboard -> /santri/home
-        Route::get('/dashboard', fn () => redirect()->route('santri.home'))->name('dashboard');
+        Route::middleware('role:santri,pengurus,degur,wali')->group(function () {
+            Route::get('/data/progres-keilmuan', [SantriProgressKeilmuanController::class, 'index'])->name('data.progres');
+        });
+
+        Route::middleware('role:pengurus,degur')->group(function () {
+            Route::get('/data/progres-keilmuan/{santriCode}/detail', [SantriProgressKeilmuanController::class, 'detail'])->name('data.progres.detail');
+        });
+
+        Route::middleware('role:santri,pengurus,degur')->group(function () {
+            Route::post('/data/progres-keilmuan/sync', [SantriProgressKeilmuanController::class, 'sync'])->name('data.progres.sync');
+            Route::resource('presensi', SantriPresensiController::class)->names('presensi')->only(['index','show','store','update','destroy','create']);
+        });
+
+        Route::middleware('role:santri')->group(function () {
+            Route::resource('kafarah', SantriKafarahController::class)->names('kafarah')->only(['index','show','store','update','destroy','create']);
+        });
+
+        Route::middleware('role:santri,pengurus,degur,wali')->group(function () {
+            Route::get('/data/log-keluar-masuk', [SantriLogKeluarMasukController::class, 'index'])->name('data.log');
+        });
+
+        Route::middleware('role:santri')->group(function () {
+            Route::post('/data/log-keluar-masuk', [SantriLogKeluarMasukController::class, 'store'])->name('data.log.store');
+            Route::patch('/data/log-keluar-masuk/{logKeluarMasuk}', [SantriLogKeluarMasukController::class, 'update'])->name('data.log.update');
+            Route::delete('/data/log-keluar-masuk/{logKeluarMasuk}', [SantriLogKeluarMasukController::class, 'destroy'])->name('data.log.destroy');
+        });
     });
 
 require __DIR__.'/auth.php';

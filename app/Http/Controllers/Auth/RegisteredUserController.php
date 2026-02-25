@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\LoginCodeGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,8 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use App\Enum\Role;
 use App\Models\Santri;
-use App\Models\Wali;
-use Illuminate\Support\Str;
 
 class RegisteredUserController extends Controller
 {
@@ -58,32 +57,31 @@ class RegisteredUserController extends Controller
         ]);
 
         // --- Buat user ---
+        $role = Role::from($data['role']);
+        $loginCode = LoginCodeGenerator::generate($role);
+
         $user = new User();
         $user->name     = $data['name'];
         $user->email    = $data['email'];
         $user->phone    = $data['phone'];
         $user->password = Hash::make($data['password']);
-        $user->role     = Role::from($data['role']); // cast ke enum (atau simpan string jika model belum cast)
+        $user->role     = $role; // cast ke enum (atau simpan string jika model belum cast)
+        $user->login_code = $loginCode;
 
         // --- Aksi khusus per-role ---
-        switch ($data['role']) {
-            case Role::SANTRI->value:
+        switch ($role) {
+            case Role::SANTRI:
                 // simpan user dulu agar dapat ID
                 $user->save();
 
-                // generate kode santri unik: S-XXXXXXXX
-                do {
-                    $code = 'S-'.strtoupper(Str::random(8));
-                } while (Santri::where('code', $code)->exists());
-
                 Santri::create([
                     'user_id'       => $user->id,
-                    'code'          => $code,
+                    'code'          => $loginCode,
                     'nama_lengkap'  => $user->name,
                 ]);
                 break;
 
-            case Role::WALI->value:
+            case Role::WALI:
                 // pastikan kode anak valid (sudah divalidasi exists, ini jaga-jaga)
                 $santri = Santri::where('code', $data['santri_code'] ?? '')->first();
                 if (!$santri) {
@@ -94,13 +92,13 @@ class RegisteredUserController extends Controller
                 $santri->walis()->syncWithoutDetaching([$user->id]);
                 break;
 
-            case Role::PENGURUS->value:
-            case Role::DEWAN_GURU->value:
+            case Role::PENGURUS:
+            case Role::DEWAN_GURU:
                 // verifikasi kode rahasia dari admin
                 $plain = trim((string)($data['verification_code'] ?? ''));
 
                 $row = DB::table('role_verification_codes')
-                    ->where('role', $data['role']) // harus 'pengurus' atau 'degur' sesuai enum
+                    ->where('role', $role->value) // harus 'pengurus' atau 'degur' sesuai enum
                     ->where(function ($q) {
                         $q->whereNull('expires_at')->orWhere('expires_at', '>=', now());
                     })
@@ -120,6 +118,10 @@ class RegisteredUserController extends Controller
                 // simpan user & increment penggunaan kode
                 $user->save();
                 DB::table('role_verification_codes')->where('id', $row->id)->increment('uses');
+                break;
+
+            default:
+                $user->save();
                 break;
         }
 

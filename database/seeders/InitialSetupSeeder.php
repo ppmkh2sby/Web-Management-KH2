@@ -4,9 +4,9 @@ namespace Database\Seeders;
 
 use App\Enum\Role;
 use App\Models\User;
+use App\Support\LoginCodeGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class InitialSetupSeeder extends Seeder
@@ -16,16 +16,22 @@ class InitialSetupSeeder extends Seeder
      */
     public function run(): void
     {
-        User::firstOrCreate(
+        $admin = User::firstOrCreate(
             ['email' => 'admin@kh2.local'], 
             [
                 'name' => 'Super Admin',
-                'password' => Hash::make('Admin@12345'),
+                'password' => Hash::make('kh2kh2kh2'),
                 'role' => Role::ADMIN,
                 'email_verified_at' => now(),
-                
+                'login_code' => LoginCodeGenerator::generate(Role::ADMIN),
             ]
         );
+
+        if (! $admin->login_code) {
+            $admin->forceFill([
+                'login_code' => LoginCodeGenerator::generate(Role::ADMIN),
+            ])->save();
+        }
 
         $this->issueCode(Role::PENGURUS, 'PENGURUS-KH2');
         $this->issueCode(Role::DEWAN_GURU, 'DEGUR-313');

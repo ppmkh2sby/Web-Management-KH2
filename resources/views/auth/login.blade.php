@@ -5,12 +5,12 @@
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
-        <!-- Email Address -->
+        <!-- Nomor Induk -->
         <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email"
-                          :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            <x-input-label for="login_code" :value="__('Nomor Induk')" />
+            <x-text-input id="login_code" class="block mt-1 w-full" type="text" name="login_code"
+                          :value="old('login_code')" required autofocus autocomplete="username" />
+            <x-input-error :messages="$errors->get('login_code')" class="mt-2" />
         </div>
 
         <!-- Password -->
@@ -40,17 +40,9 @@
                 </a>
             @endif
 
-            <div class="flex gap-2">
-                <a href="{{ route('register') }}"
-                   class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md
-                          font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm
-                          hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    {{ __('Register') }}
-                </a>
-                <x-primary-button>
-                    {{ __('Log in') }}
-                </x-primary-button>
-            </div>
+            <x-primary-button>
+                {{ __('Log in') }}
+            </x-primary-button>
         </div>
     </form>
 </x-guest-layout>
