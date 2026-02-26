@@ -143,11 +143,18 @@ class DashboardController extends Controller
 
         if ($santriId) {
             $attendanceBase = Presensi::query()->where('santri_id', $santriId);
-            $attendanceStats['total'] = (clone $attendanceBase)->count();
-            $attendanceStats['hadir'] = (clone $attendanceBase)->where('status', 'hadir')->count();
-            $attendanceStats['izin'] = (clone $attendanceBase)->where('status', 'izin')->count();
-            $attendanceStats['sakit'] = (clone $attendanceBase)->where('status', 'sakit')->count();
-            $attendanceStats['alpha'] = (clone $attendanceBase)->where('status', 'alpha')->count();
+            $attendanceCounts = (clone $attendanceBase)
+                ->selectRaw('status, count(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
+            $attendanceStats['hadir'] = (int) ($attendanceCounts['hadir'] ?? 0);
+            $attendanceStats['izin'] = (int) ($attendanceCounts['izin'] ?? 0);
+            $attendanceStats['sakit'] = (int) ($attendanceCounts['sakit'] ?? 0);
+            $attendanceStats['alpha'] = (int) ($attendanceCounts['alpha'] ?? 0);
+            $attendanceStats['total'] = $attendanceStats['hadir']
+                + $attendanceStats['izin']
+                + $attendanceStats['sakit']
+                + $attendanceStats['alpha'];
             $attendanceStats['persentase'] = $attendanceStats['total'] > 0
                 ? (int) round(($attendanceStats['hadir'] / $attendanceStats['total']) * 100)
                 : 0;
@@ -200,11 +207,18 @@ class DashboardController extends Controller
             $staffAttendanceStats['santriTotal'] = Santri::query()->count();
 
             $attendanceBase = Presensi::query();
-            $staffAttendanceStats['total'] = (clone $attendanceBase)->count();
-            $staffAttendanceStats['hadir'] = (clone $attendanceBase)->where('status', 'hadir')->count();
-            $staffAttendanceStats['izin'] = (clone $attendanceBase)->where('status', 'izin')->count();
-            $staffAttendanceStats['sakit'] = (clone $attendanceBase)->where('status', 'sakit')->count();
-            $staffAttendanceStats['alpha'] = (clone $attendanceBase)->where('status', 'alpha')->count();
+            $staffAttendanceCounts = (clone $attendanceBase)
+                ->selectRaw('status, count(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
+            $staffAttendanceStats['hadir'] = (int) ($staffAttendanceCounts['hadir'] ?? 0);
+            $staffAttendanceStats['izin'] = (int) ($staffAttendanceCounts['izin'] ?? 0);
+            $staffAttendanceStats['sakit'] = (int) ($staffAttendanceCounts['sakit'] ?? 0);
+            $staffAttendanceStats['alpha'] = (int) ($staffAttendanceCounts['alpha'] ?? 0);
+            $staffAttendanceStats['total'] = $staffAttendanceStats['hadir']
+                + $staffAttendanceStats['izin']
+                + $staffAttendanceStats['sakit']
+                + $staffAttendanceStats['alpha'];
             $staffAttendanceStats['persentase'] = $staffAttendanceStats['total'] > 0
                 ? (int) round(($staffAttendanceStats['hadir'] / $staffAttendanceStats['total']) * 100)
                 : 0;
@@ -214,6 +228,7 @@ class DashboardController extends Controller
 
             $staffProgressRows = ProgressKeilmuan::query()
                 ->with('santri:id,nama_lengkap,tim,code')
+                ->limit(500)
                 ->get();
 
             $staffProgressStats['total'] = $staffProgressRows->count();
@@ -256,6 +271,7 @@ class DashboardController extends Controller
                 ->with('santri:id,nama_lengkap,gender,tim,code')
                 ->latest('tanggal_pengajuan')
                 ->latest('id')
+                ->limit(200)
                 ->get();
 
             $staffLogStats['total'] = $staffLogRows->count();

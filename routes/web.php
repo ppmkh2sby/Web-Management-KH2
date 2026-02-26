@@ -51,8 +51,8 @@ Route::middleware(['auth'])
     ->group(function () {
         // Beranda bisa diakses oleh semua role setelah login
         Route::get('/home', [SantriDashboard::class, 'home'])->name('home');
-        // alias: /santri/dashboard -> /santri/home
-        Route::get('/dashboard', fn () => redirect()->route('santri.home'))->name('dashboard');
+        // Legacy path for backward compatibility, rendered directly to avoid redirect chain
+        Route::get('/dashboard', [SantriDashboard::class, 'home'])->name('dashboard');
 
         // Semua fitur santri dibuka untuk seluruh role (degur/pengurus/wali juga bisa akses)
         Route::get('/profile',  [SantriDashboard::class, 'profile'])->name('profile');

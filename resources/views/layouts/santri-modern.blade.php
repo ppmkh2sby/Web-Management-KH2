@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>@yield('title','Santri')</title>
   @vite(['resources/css/app.css','resources/js/app.js'])
-  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => { window.lucide?.createIcons?.(); });
-  </script>
   <style>
     /* Critical layout styles to prevent FOUC/shift before Vite CSS hydrates */
     .layout-shell { min-height: 100vh; padding: 1.25rem; }
@@ -53,8 +49,6 @@
 <body class="bg-gray-100 text-gray-800 overflow-y-scroll antialiased">
 @php
   $currentUser = auth()->user();
-  // Pastikan relasi santri tersedia agar field tim terbaca di sidebar/profile
-  $currentUser?->loadMissing('santri');
   $roleValue = $currentUser?->role?->value;
   $isKetertiban = $currentUser?->isKetertiban();
   $activeChildCode = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
