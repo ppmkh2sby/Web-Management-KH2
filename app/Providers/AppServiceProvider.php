@@ -11,7 +11,9 @@ use App\Policies\PresensiPolicy;
 use App\Policies\LogKeluarMasukPolicy;
 use App\Policies\ProgressKeilmuanPolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use App\View\Composers\SantriModernLayoutComposer;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,5 +34,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ProgressKeilmuan::class, ProgressKeilmuanPolicy::class);
         Gate::policy(LogKeluarMasuk::class, LogKeluarMasukPolicy::class);
         Gate::policy(Presensi::class, PresensiPolicy::class);
+
+        View::composer('layouts.santri-modern', SantriModernLayoutComposer::class);
     }
 }

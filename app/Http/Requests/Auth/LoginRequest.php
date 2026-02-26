@@ -6,6 +6,7 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -41,7 +42,7 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('login_code', 'password'), $this->boolean('remember'))) {
+        if (! $this->attemptWithAvailableIdentifierColumns()) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -50,6 +51,50 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+    }
+
+    private function attemptWithAvailableIdentifierColumns(): bool
+    {
+        $identifier = (string) $this->string('login_code');
+        $password = (string) $this->string('password');
+        $remember = $this->boolean('remember');
+
+        $identifierColumns = $this->resolveIdentifierColumns();
+        foreach ($identifierColumns as $column) {
+            if (Auth::attempt([$column => $identifier, 'password' => $password], $remember)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveIdentifierColumns(): array
+    {
+        static $cached;
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $cached = [];
+
+        if (Schema::hasColumn('users', 'login_code')) {
+            $cached[] = 'login_code';
+        }
+
+        if (Schema::hasColumn('users', 'email')) {
+            $cached[] = 'email';
+        }
+
+        if (empty($cached)) {
+            $cached[] = 'email';
+        }
+
+        return $cached;
     }
 
     /**
