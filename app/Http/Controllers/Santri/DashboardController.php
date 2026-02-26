@@ -140,6 +140,7 @@ class DashboardController extends Controller
         ];
         $staffRecentLogs = collect();
         $staffProgressLeaders = collect();
+        $progressPercentSql = "CASE WHEN target > 0 THEN CASE WHEN ROUND((capaian * 100.0) / target) > 100 THEN 100 ELSE ROUND((capaian * 100.0) / target) END ELSE 0 END";
 
         if ($santriId) {
             $attendanceBase = Presensi::query()->where('santri_id', $santriId);
@@ -160,61 +161,69 @@ class DashboardController extends Controller
                 : 0;
             $attendanceRecent = (clone $attendanceBase)->with('kegiatan')->latest('created_at')->take(5)->get();
 
-            $kafarahRows = Kafarah::query()
-                ->where('santri_id', $santriId)
-                ->latest('tanggal')
-                ->get();
-            $kafarahStats['total'] = $kafarahRows->count();
-            $kafarahStats['total_kafarah'] = (int) $kafarahRows->sum('tanggungan');
-            $kafarahStats['jumlah_setor'] = (int) $kafarahRows->sum('jumlah_setor');
+            $kafarahBase = Kafarah::query()->where('santri_id', $santriId);
+            $kafarahAggregate = (clone $kafarahBase)
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw('COALESCE(SUM(tanggungan), 0) as total_kafarah')
+                ->selectRaw('COALESCE(SUM(jumlah_setor), 0) as jumlah_setor')
+                ->first();
+            $kafarahStats['total'] = (int) ($kafarahAggregate?->total ?? 0);
+            $kafarahStats['total_kafarah'] = (int) ($kafarahAggregate?->total_kafarah ?? 0);
+            $kafarahStats['jumlah_setor'] = (int) ($kafarahAggregate?->jumlah_setor ?? 0);
             $kafarahStats['sisa_tanggungan'] = max(
                 0,
                 $kafarahStats['total_kafarah'] - $kafarahStats['jumlah_setor']
             );
-            $kafarahRecent = $kafarahRows->take(5);
+            $kafarahRecent = (clone $kafarahBase)->latest('tanggal')->take(5)->get();
 
-            $progressRows = ProgressKeilmuan::query()
-                ->where('santri_id', $santriId)
-                ->latest('updated_at')
-                ->get();
-            $progressStats['total'] = $progressRows->count();
-            $progressStats['completed'] = $progressRows->filter(
-                fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) >= 100
-            )->count();
-            $progressStats['in_progress'] = $progressRows->filter(
-                fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) > 0 && ($item->persentase ?? 0) < 100
-            )->count();
-            $progressStats['average'] = $progressStats['total'] > 0
-                ? (int) round($progressRows->avg(fn (ProgressKeilmuan $item) => $item->persentase ?? 0))
-                : 0;
-            $progressStats['quran'] = $progressRows->where('level', ProgressKeilmuan::LEVEL_QURAN)->count();
-            $progressStats['hadits'] = $progressRows->where('level', ProgressKeilmuan::LEVEL_HADITS)->count();
-            $progressRecent = $progressRows->take(5);
+            $progressBase = ProgressKeilmuan::query()->where('santri_id', $santriId);
+            $progressAggregate = (clone $progressBase)
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw("SUM(CASE WHEN {$progressPercentSql} >= 100 THEN 1 ELSE 0 END) as completed")
+                ->selectRaw("SUM(CASE WHEN {$progressPercentSql} > 0 AND {$progressPercentSql} < 100 THEN 1 ELSE 0 END) as in_progress")
+                ->selectRaw("COALESCE(AVG({$progressPercentSql}), 0) as average")
+                ->selectRaw('SUM(CASE WHEN level = ? THEN 1 ELSE 0 END) as quran', [ProgressKeilmuan::LEVEL_QURAN])
+                ->selectRaw('SUM(CASE WHEN level = ? THEN 1 ELSE 0 END) as hadits', [ProgressKeilmuan::LEVEL_HADITS])
+                ->first();
+            $progressStats['total'] = (int) ($progressAggregate?->total ?? 0);
+            $progressStats['completed'] = (int) ($progressAggregate?->completed ?? 0);
+            $progressStats['in_progress'] = (int) ($progressAggregate?->in_progress ?? 0);
+            $progressStats['average'] = (int) round((float) ($progressAggregate?->average ?? 0));
+            $progressStats['quran'] = (int) ($progressAggregate?->quran ?? 0);
+            $progressStats['hadits'] = (int) ($progressAggregate?->hadits ?? 0);
+            $progressRecent = (clone $progressBase)->latest('updated_at')->take(5)->get();
 
-            $logRows = LogKeluarMasuk::query()
-                ->where('santri_id', $santriId)
-                ->latest('tanggal_pengajuan')
-                ->get();
-            $logStats['total'] = $logRows->count();
+            $logBase = LogKeluarMasuk::query()->where('santri_id', $santriId);
+            $logCounts = (clone $logBase)
+                ->selectRaw('status, count(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
+            $logStats['total'] = (int) $logCounts->sum();
             foreach (LogKeluarMasuk::STATUSES as $status) {
-                $logStats[strtolower($status)] = $logRows->where('status', $status)->count();
+                $logStats[strtolower($status)] = (int) ($logCounts[$status] ?? 0);
             }
-            $logRecent = $logRows->take(5);
+            $logRecent = (clone $logBase)->latest('tanggal_pengajuan')->take(5)->get();
         }
 
         if ($isStaffDashboard) {
             $today = Carbon::today();
             $staffAttendanceStats['santriTotal'] = Santri::query()->count();
 
-            $attendanceBase = Presensi::query();
-            $staffAttendanceCounts = (clone $attendanceBase)
-                ->selectRaw('status, count(*) as total')
-                ->groupBy('status')
-                ->pluck('total', 'status');
-            $staffAttendanceStats['hadir'] = (int) ($staffAttendanceCounts['hadir'] ?? 0);
-            $staffAttendanceStats['izin'] = (int) ($staffAttendanceCounts['izin'] ?? 0);
-            $staffAttendanceStats['sakit'] = (int) ($staffAttendanceCounts['sakit'] ?? 0);
-            $staffAttendanceStats['alpha'] = (int) ($staffAttendanceCounts['alpha'] ?? 0);
+            $staffAttendanceAggregate = Presensi::query()
+                ->leftJoin('santris', 'santris.id', '=', 'presensis.santri_id')
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'hadir' THEN 1 ELSE 0 END) as hadir")
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'izin' THEN 1 ELSE 0 END) as izin")
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'sakit' THEN 1 ELSE 0 END) as sakit")
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'alpha' THEN 1 ELSE 0 END) as alpha")
+                ->selectRaw('SUM(CASE WHEN DATE(presensis.created_at) = ? THEN 1 ELSE 0 END) as today', [$today->toDateString()])
+                ->selectRaw("SUM(CASE WHEN LOWER(COALESCE(santris.gender, '')) = 'putra' THEN 1 ELSE 0 END) as putra")
+                ->selectRaw("SUM(CASE WHEN LOWER(COALESCE(santris.gender, '')) = 'putri' THEN 1 ELSE 0 END) as putri")
+                ->first();
+
+            $staffAttendanceStats['hadir'] = (int) ($staffAttendanceAggregate?->hadir ?? 0);
+            $staffAttendanceStats['izin'] = (int) ($staffAttendanceAggregate?->izin ?? 0);
+            $staffAttendanceStats['sakit'] = (int) ($staffAttendanceAggregate?->sakit ?? 0);
+            $staffAttendanceStats['alpha'] = (int) ($staffAttendanceAggregate?->alpha ?? 0);
             $staffAttendanceStats['total'] = $staffAttendanceStats['hadir']
                 + $staffAttendanceStats['izin']
                 + $staffAttendanceStats['sakit']
@@ -222,69 +231,70 @@ class DashboardController extends Controller
             $staffAttendanceStats['persentase'] = $staffAttendanceStats['total'] > 0
                 ? (int) round(($staffAttendanceStats['hadir'] / $staffAttendanceStats['total']) * 100)
                 : 0;
-            $staffAttendanceStats['today'] = (clone $attendanceBase)->whereDate('created_at', $today)->count();
-            $staffAttendanceStats['putra'] = (clone $attendanceBase)->whereHas('santri', fn ($q) => $q->where('gender', 'putra'))->count();
-            $staffAttendanceStats['putri'] = (clone $attendanceBase)->whereHas('santri', fn ($q) => $q->where('gender', 'putri'))->count();
+            $staffAttendanceStats['today'] = (int) ($staffAttendanceAggregate?->today ?? 0);
+            $staffAttendanceStats['putra'] = (int) ($staffAttendanceAggregate?->putra ?? 0);
+            $staffAttendanceStats['putri'] = (int) ($staffAttendanceAggregate?->putri ?? 0);
 
-            $staffProgressRows = ProgressKeilmuan::query()
-                ->with('santri:id,nama_lengkap,tim,code')
-                ->limit(500)
-                ->get();
+            $staffProgressAggregate = ProgressKeilmuan::query()
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw("SUM(CASE WHEN {$progressPercentSql} >= 100 THEN 1 ELSE 0 END) as completed")
+                ->selectRaw("SUM(CASE WHEN {$progressPercentSql} > 0 AND {$progressPercentSql} < 100 THEN 1 ELSE 0 END) as in_progress")
+                ->selectRaw("COALESCE(AVG({$progressPercentSql}), 0) as average")
+                ->selectRaw('SUM(CASE WHEN level = ? THEN 1 ELSE 0 END) as quran', [ProgressKeilmuan::LEVEL_QURAN])
+                ->selectRaw('SUM(CASE WHEN level = ? THEN 1 ELSE 0 END) as hadits', [ProgressKeilmuan::LEVEL_HADITS])
+                ->selectRaw('COUNT(DISTINCT CASE WHEN COALESCE(capaian, 0) > 0 THEN santri_id END) as active_santri')
+                ->first();
 
-            $staffProgressStats['total'] = $staffProgressRows->count();
-            $staffProgressStats['completed'] = $staffProgressRows->filter(fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) >= 100)->count();
-            $staffProgressStats['in_progress'] = $staffProgressRows->filter(fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) > 0 && ($item->persentase ?? 0) < 100)->count();
-            $staffProgressStats['average'] = $staffProgressRows->isNotEmpty()
-                ? (int) round($staffProgressRows->avg(fn (ProgressKeilmuan $item) => $item->persentase ?? 0))
-                : 0;
-            $staffProgressStats['quran'] = $staffProgressRows->where('level', ProgressKeilmuan::LEVEL_QURAN)->count();
-            $staffProgressStats['hadits'] = $staffProgressRows->where('level', ProgressKeilmuan::LEVEL_HADITS)->count();
-            $staffProgressStats['activeSantri'] = $staffProgressRows
-                ->filter(fn (ProgressKeilmuan $item) => (int) ($item->capaian ?? 0) > 0)
-                ->pluck('santri_id')
-                ->unique()
-                ->count();
+            $staffProgressStats['total'] = (int) ($staffProgressAggregate?->total ?? 0);
+            $staffProgressStats['completed'] = (int) ($staffProgressAggregate?->completed ?? 0);
+            $staffProgressStats['in_progress'] = (int) ($staffProgressAggregate?->in_progress ?? 0);
+            $staffProgressStats['average'] = (int) round((float) ($staffProgressAggregate?->average ?? 0));
+            $staffProgressStats['quran'] = (int) ($staffProgressAggregate?->quran ?? 0);
+            $staffProgressStats['hadits'] = (int) ($staffProgressAggregate?->hadits ?? 0);
+            $staffProgressStats['activeSantri'] = (int) ($staffProgressAggregate?->active_santri ?? 0);
 
-            $staffProgressLeaders = $staffProgressRows
+            $staffProgressLeaders = ProgressKeilmuan::query()
+                ->selectRaw('santri_id')
+                ->selectRaw("ROUND(AVG({$progressPercentSql})) as average")
+                ->selectRaw("SUM(CASE WHEN {$progressPercentSql} >= 100 THEN 1 ELSE 0 END) as completed")
+                ->selectRaw('MAX(COALESCE(terakhir_setor, updated_at)) as updated_at')
+                ->whereNotNull('santri_id')
                 ->groupBy('santri_id')
-                ->map(function ($rows) {
-                    /** @var \Illuminate\Support\Collection<int, ProgressKeilmuan> $rows */
-                    $first = $rows->first();
-                    $santri = $first?->santri;
+                ->with('santri:id,nama_lengkap,tim,code')
+                ->orderByDesc('average')
+                ->limit(8)
+                ->get()
+                ->map(function (ProgressKeilmuan $row) {
+                    $santri = $row->santri;
 
                     return [
                         'nama' => $santri?->nama_lengkap ?? '-',
                         'tim' => $santri?->tim_resolved ?? $santri?->tim ?? '-',
-                        'average' => (int) round($rows->avg(fn (ProgressKeilmuan $item) => $item->persentase ?? 0)),
-                        'completed' => $rows->filter(fn (ProgressKeilmuan $item) => ($item->persentase ?? 0) >= 100)->count(),
-                        'updated_at' => $rows
-                            ->map(fn (ProgressKeilmuan $item) => $item->terakhir_setor ?? $item->updated_at)
-                            ->filter()
-                            ->max(),
+                        'average' => (int) ($row->average ?? 0),
+                        'completed' => (int) ($row->completed ?? 0),
+                        'updated_at' => $row->updated_at ? Carbon::parse((string) $row->updated_at) : null,
                     ];
                 })
-                ->sortByDesc('average')
-                ->take(8)
                 ->values();
 
-            $staffLogRows = LogKeluarMasuk::query()
+            $staffLogAggregate = LogKeluarMasuk::query()
+                ->leftJoin('santris', 'santris.id', '=', 'log_keluar_masuks.santri_id')
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw('SUM(CASE WHEN DATE(log_keluar_masuks.tanggal_pengajuan) = ? THEN 1 ELSE 0 END) as today', [$today->toDateString()])
+                ->selectRaw("SUM(CASE WHEN LOWER(COALESCE(santris.gender, '')) = 'putra' THEN 1 ELSE 0 END) as putra")
+                ->selectRaw("SUM(CASE WHEN LOWER(COALESCE(santris.gender, '')) = 'putri' THEN 1 ELSE 0 END) as putri")
+                ->first();
+            $staffLogStats['total'] = (int) ($staffLogAggregate?->total ?? 0);
+            $staffLogStats['today'] = (int) ($staffLogAggregate?->today ?? 0);
+            $staffLogStats['putra'] = (int) ($staffLogAggregate?->putra ?? 0);
+            $staffLogStats['putri'] = (int) ($staffLogAggregate?->putri ?? 0);
+
+            $staffRecentLogs = LogKeluarMasuk::query()
                 ->with('santri:id,nama_lengkap,gender,tim,code')
                 ->latest('tanggal_pengajuan')
                 ->latest('id')
-                ->limit(200)
+                ->limit(10)
                 ->get();
-
-            $staffLogStats['total'] = $staffLogRows->count();
-            $staffLogStats['today'] = $staffLogRows->filter(
-                fn (LogKeluarMasuk $log) => optional($log->tanggal_pengajuan)?->isSameDay($today)
-            )->count();
-            $staffLogStats['putra'] = $staffLogRows->filter(
-                fn (LogKeluarMasuk $log) => strtolower((string) ($log->santri?->gender ?? '')) === 'putra'
-            )->count();
-            $staffLogStats['putri'] = $staffLogRows->filter(
-                fn (LogKeluarMasuk $log) => strtolower((string) ($log->santri?->gender ?? '')) === 'putri'
-            )->count();
-            $staffRecentLogs = $staffLogRows->take(10);
         }
 
         $emailVerified = !is_null(Auth::user()->email_verified_at);

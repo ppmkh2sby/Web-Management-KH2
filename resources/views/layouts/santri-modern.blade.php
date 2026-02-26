@@ -51,21 +51,25 @@
   $currentUser = auth()->user();
   $roleValue = $currentUser?->role?->value;
   $isKetertiban = $currentUser?->isKetertiban();
-  $activeChildCode = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
+  $activeChildRaw = request()->route('santriCode') ?? request()->route('santri') ?? request()->route('code');
+  $activeChildCode = $activeChildRaw instanceof \App\Models\Santri ? $activeChildRaw->code : $activeChildRaw;
+  $waliChildren = collect();
+  if ($roleValue === \App\Enum\Role::WALI->value) {
+    $waliChildren = $currentUser?->waliOf ?? collect();
+  }
+
   if ($roleValue === \App\Enum\Role::WALI->value && blank($activeChildCode)) {
-    $activeChildCode = $currentUser?->waliOf()
-      ->orderBy('santris.nama_lengkap')
-      ->value('santris.code');
+    $activeChildCode = $waliChildren->sortBy('nama_lengkap')->first()?->code;
   }
   $hasChildSelected = filled($activeChildCode);
   $santriTeam = null;
-  $brandRoute = $roleValue === \App\Enum\Role::WALI->value ? route('wali.main') : route('dashboard');
+  $brandRoute = $roleValue === \App\Enum\Role::WALI->value ? route('wali.main') : route('santri.home');
 
   if ($roleValue === \App\Enum\Role::SANTRI->value) {
     $santriTeam = trim((string) ($currentUser?->teamName() ?? ''));
   } elseif ($roleValue === \App\Enum\Role::WALI->value && $hasChildSelected) {
-    // Jika wali memilih santri tertentu, ambil tim santri tersebut via code
-    $santriTeam = trim((string) optional(\App\Models\Santri::where('code', $activeChildCode)->first())->tim ?? '');
+    $selectedChild = $waliChildren->firstWhere('code', (string) $activeChildCode);
+    $santriTeam = trim((string) ($selectedChild?->tim ?? ''));
   }
   $santriTeamBadge = \App\Models\User::teamAbbreviation($santriTeam);
   $sidebarRoleCaption = match ($roleValue) {
@@ -146,7 +150,7 @@
                   </a>
                 </li>
                 @php
-                  $isKetertibanUser = auth()->user()?->isKetertiban();
+                  $isKetertibanUser = $isKetertiban;
                   $isStaffRole = in_array($roleValue, [\App\Enum\Role::PENGURUS->value, \App\Enum\Role::DEWAN_GURU->value], true);
                   $defaultPresensiMode = $isStaffRole ? 'team' : 'mine';
                   $isPresensiPrimaryActive = request()->routeIs('santri.presensi.index') && request()->query('mode', $defaultPresensiMode) === $defaultPresensiMode;

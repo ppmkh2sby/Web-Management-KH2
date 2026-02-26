@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enum\Role;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -10,7 +11,12 @@ class LoadUserRelations
     public function handle(Request $request, Closure $next)
     {
         if (auth()->check()) {
-            auth()->user()?->loadMissing('santri');
+            $user = auth()->user();
+            $user?->loadMissing('santri');
+
+            if ($user?->role === Role::WALI) {
+                $user->loadMissing('waliOf');
+            }
         }
 
         return $next($request);

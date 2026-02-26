@@ -25,6 +25,9 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
+    private bool $teamNameResolved = false;
+    private string $teamNameCached = '';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -170,35 +173,54 @@ class User extends Authenticatable
      */
     public function teamName(): string
     {
+        if ($this->teamNameResolved) {
+            return $this->teamNameCached;
+        }
+
         // 1) relasi santri yang sudah dimuat
         $team = trim((string) ($this->santri?->tim ?? ''));
         if ($team !== '') {
-            return $team;
+            $this->teamNameCached = $team;
+            $this->teamNameResolved = true;
+
+            return $this->teamNameCached;
         }
 
         // 2) cari santri by user_id jika ada
-        $byUser = optional(SantriModel::where('user_id', $this->id)->first())->tim ?? '';
+        $byUser = optional(SantriModel::query()->select('tim')->where('user_id', $this->id)->first())->tim ?? '';
         $byUser = trim((string) $byUser);
         if ($byUser !== '') {
-            return $byUser;
+            $this->teamNameCached = $byUser;
+            $this->teamNameResolved = true;
+
+            return $this->teamNameCached;
         }
 
         // 3) fallback by code/login_code
         $code = $this->santri?->code ?? $this->login_code ?? null;
         if ($code) {
-            $byCode = optional(SantriModel::where('code', $code)->first())->tim ?? '';
+            $byCode = optional(SantriModel::query()->select('tim')->where('code', $code)->first())->tim ?? '';
             $byCode = trim((string) $byCode);
             if ($byCode !== '') {
-                return $byCode;
+                $this->teamNameCached = $byCode;
+                $this->teamNameResolved = true;
+
+                return $this->teamNameCached;
             }
 
             // 4) fallback ke lookup statis jika tim di DB kosong
             if (array_key_exists($code, self::$TEAM_LOOKUP)) {
-                return (string) (self::$TEAM_LOOKUP[$code] ?? '');
+                $this->teamNameCached = (string) (self::$TEAM_LOOKUP[$code] ?? '');
+                $this->teamNameResolved = true;
+
+                return $this->teamNameCached;
             }
         }
 
-        return '';
+        $this->teamNameCached = '';
+        $this->teamNameResolved = true;
+
+        return $this->teamNameCached;
     }
 
     /**
