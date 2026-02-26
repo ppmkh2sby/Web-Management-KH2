@@ -13,10 +13,12 @@ use Illuminate\Support\Carbon;
  * @property string $nama
  * @property string $status
  * @property int $kegiatan_id
+ * @property int|null $sesi_id
  * @property string|null $catatan
  * @property string $waktu
  * @property-read Santri $santri
  * @property-read Kegiatan $kegiatan
+ * @property-read Sesi|null $sesi
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
@@ -32,6 +34,7 @@ class Presensi extends Model
         'nama',
         'status',
         'kegiatan_id',
+        'sesi_id',
         'catatan',
         'waktu',
         'created_at',
@@ -46,5 +49,10 @@ class Presensi extends Model
     public function kegiatan(): BelongsTo
     {
         return $this->belongsTo(Kegiatan::class);
+    }
+
+    public function sesi(): BelongsTo
+    {
+        return $this->belongsTo(Sesi::class);
     }
 }

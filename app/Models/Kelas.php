@@ -19,4 +19,9 @@ class Kelas extends Model
     {
         return $this->belongsToMany(User::class, 'degur_kelas', 'kelas_id', 'user_id')->withTimestamps();
     }
+
+    public function sesis(): BelongsToMany
+    {
+        return $this->belongsToMany(Sesi::class, 'sesi_kelas', 'kelas_id', 'sesi_id')->withTimestamps();
+    }
 }

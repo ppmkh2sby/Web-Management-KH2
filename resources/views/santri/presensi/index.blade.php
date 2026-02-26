@@ -230,7 +230,7 @@
                   <span class="text-gray-600 text-[10px] leading-3">{{ $team }}</span>
                 </td>
                 <td class="px-3 py-1.5">
-                  <span class="text-gray-600 text-[10px] leading-3">{{ $row->created_at->format('d M Y') }}</span>
+                  <span class="text-gray-600 text-[10px] leading-3">{{ optional($row->sesi?->tanggal)->format('d M Y') ?? $row->created_at->format('d M Y') }}</span>
                 </td>
                 <td class="px-3 py-1.5">
                   <span class="text-gray-600 text-[10px] leading-3">{{ ucfirst($row->kegiatan->kategori ?? 'Sambung') }}</span>
@@ -260,7 +260,7 @@
                     <button type="button"
                             class="text-gray-400 hover:text-gray-600 p-1 action-menu-button"
                             data-id="{{ $row->id }}"
-                            data-tanggal="{{ $row->created_at->format('Y-m-d') }}"
+                            data-tanggal="{{ optional($row->sesi?->tanggal)->format('Y-m-d') ?? $row->created_at->format('Y-m-d') }}"
                             data-kategori="{{ $row->kegiatan->kategori ?? '' }}"
                             data-waktu="{{ $row->waktu }}"
                             data-status="{{ $row->status }}"
@@ -364,9 +364,9 @@
 
     {{-- Stats Cards --}}
     <div class="grid grid-cols-6 gap-3">
-      {{-- Total Pertemuan --}}
+      {{-- Total Sesi --}}
       <div class="bg-white border border-gray-200 rounded-xl px-4 py-3.5 shadow-sm">
-        <p class="text-xs font-medium text-gray-600 leading-tight">Total Pertemuan</p>
+        <p class="text-xs font-medium text-gray-600 leading-tight">Total Sesi</p>
         <p class="text-2xl font-semibold text-gray-900 leading-8 mt-1.5">{{ $stats['total_pertemuan'] }}</p>
       </div>
 
@@ -480,7 +480,7 @@
               @forelse($presensis as $row)
                 <tr class="hover:bg-gray-50 transition-colors">
                   <td class="px-4 py-3 text-xs font-medium text-gray-900">
-                    {{ $row->created_at->translatedFormat('d M Y') }}
+                    {{ optional($row->sesi?->tanggal)->translatedFormat('d M Y') ?? $row->created_at->translatedFormat('d M Y') }}
                   </td>
                   <td class="px-4 py-3 text-xs text-gray-600">
                     {{ ucfirst($row->kegiatan->kategori ?? 'Sambung') }}
@@ -611,7 +611,7 @@
                 </span>
               </div>
               <p class="text-xs font-medium text-gray-500 leading-tight">
-                {{ $update->created_at->translatedFormat('l, d F Y') }}
+                {{ optional($update->sesi?->tanggal)->translatedFormat('l, d F Y') ?? $update->created_at->translatedFormat('l, d F Y') }}
               </p>
             </div>
           @empty

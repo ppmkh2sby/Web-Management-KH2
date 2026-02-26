@@ -9,9 +9,11 @@ use App\Enum\Role;
 use App\Models\Kegiatan;
 use App\Models\Presensi;
 use App\Models\Santri;
+use App\Models\Sesi;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PresensiController extends Controller
@@ -109,6 +111,31 @@ class PresensiController extends Controller
         abort(403, 'Role ini tidak dapat menginput presensi kelas.');
     }
 
+    /**
+     * @param array<int, mixed> $requestedKelasIds
+     * @return array<int, int>
+     */
+    private function resolveDegurKelasIds(array $requestedKelasIds): array
+    {
+        $allowedKelasIds = $this->degurKelasIds();
+        abort_if(empty($allowedKelasIds), 403, 'Akun dewan guru belum ditautkan ke kelas ajar.');
+
+        $requested = collect($requestedKelasIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($requested->isEmpty()) {
+            return $allowedKelasIds;
+        }
+
+        $invalid = $requested->diff($allowedKelasIds);
+        abort_if($invalid->isNotEmpty(), 403, 'Anda hanya bisa memilih kelas yang Anda ampu.');
+
+        return $requested->all();
+    }
+
     public function index(): View
     {
         $this->ensureAllowedRole();
@@ -141,7 +168,7 @@ class PresensiController extends Controller
             $gender = 'putra';
         }
 
-        $query = Presensi::with(['santri', 'kegiatan'])->latest('updated_at');
+        $query = Presensi::with(['santri', 'kegiatan', 'sesi'])->latest('updated_at');
 
         if ($isKetertiban && $mode === 'input') {
             $query->whereHas('santri', function ($q) use ($gender) {
@@ -275,6 +302,7 @@ class PresensiController extends Controller
         // Calculate stats for "mine" mode
         $stats = [
             'total_pertemuan' => 0,
+            'total_pertemuan_bulan_ini' => 0,
             'hadir' => 0,
             'izin' => 0,
             'sakit' => 0,
@@ -285,14 +313,38 @@ class PresensiController extends Controller
         $latestUpdates = collect();
 
         if ($mode === 'mine' && $santriId) {
-            // Total pertemuan (count all presensis for this santri)
-            $stats['total_pertemuan'] = Presensi::where('santri_id', $santriId)->count();
+            $legacyPresensiTotal = Presensi::where('santri_id', $santriId)->count();
+
+            $santri = Santri::query()->select(['id', 'kelas_id'])->find($santriId);
+            if ($santri?->kelas_id) {
+                $sesiBaseQuery = Sesi::query()
+                    ->whereHas('kelas', fn ($q) => $q->where('kelas.id', $santri->kelas_id));
+
+                $stats['total_pertemuan'] = (clone $sesiBaseQuery)->count();
+                $stats['total_pertemuan_bulan_ini'] = (clone $sesiBaseQuery)
+                    ->whereYear('tanggal', now()->year)
+                    ->whereMonth('tanggal', now()->month)
+                    ->count();
+            } else {
+                // Fallback data lama saat kelas belum terhubung.
+                $stats['total_pertemuan'] = $legacyPresensiTotal;
+            }
             
             // Count by status
             $stats['hadir'] = Presensi::where('santri_id', $santriId)->where('status', 'hadir')->count();
             $stats['izin'] = Presensi::where('santri_id', $santriId)->where('status', 'izin')->count();
             $stats['sakit'] = Presensi::where('santri_id', $santriId)->where('status', 'sakit')->count();
             $stats['alpa'] = Presensi::where('santri_id', $santriId)->where('status', 'alpha')->count();
+
+            // Backward compatibility:
+            // jika data historis belum punya sesi, pakai total record presensi lama.
+            if ($stats['total_pertemuan'] === 0 && $legacyPresensiTotal > 0) {
+                $stats['total_pertemuan'] = $legacyPresensiTotal;
+                $stats['total_pertemuan_bulan_ini'] = Presensi::where('santri_id', $santriId)
+                    ->whereYear('created_at', now()->year)
+                    ->whereMonth('created_at', now()->month)
+                    ->count();
+            }
             
             // Calculate percentage
             if ($stats['total_pertemuan'] > 0) {
@@ -300,7 +352,7 @@ class PresensiController extends Controller
             }
 
             // Get latest 3 updates
-            $latestUpdates = Presensi::with(['kegiatan'])
+            $latestUpdates = Presensi::with(['kegiatan', 'sesi'])
                 ->where('santri_id', $santriId)
                 ->latest('created_at')
                 ->take(3)
@@ -332,6 +384,153 @@ class PresensiController extends Controller
         ]);
     }
 
+    public function rekap(): View
+    {
+        $this->ensureAllowedRole();
+        $this->authorize('viewAny', Presensi::class);
+
+        $user = auth()->user();
+        abort_unless($user && $user->isKetertiban(), 403, 'Fitur rekap presensi khusus tim KTB.');
+
+        $bulanInput = trim((string) request()->query('bulan', now()->format('Y-m')));
+        if (!preg_match('/^\d{4}\-(0[1-9]|1[0-2])$/', $bulanInput)) {
+            $bulanInput = now()->format('Y-m');
+        }
+
+        [$tahun, $bulan] = array_map('intval', explode('-', $bulanInput));
+        $monthStart = Carbon::createFromDate($tahun, $bulan, 1)->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+
+        $kategori = strtolower(trim((string) request()->query('kategori', 'all')));
+        if ($kategori !== 'all' && !in_array($kategori, Kegiatan::KATEGORI, true)) {
+            $kategori = 'all';
+        }
+
+        $waktu = strtolower(trim((string) request()->query('waktu', 'all')));
+        if ($waktu !== 'all' && !in_array($waktu, Presensi::WAKTU, true)) {
+            $waktu = 'all';
+        }
+
+        $recordsQuery = Presensi::query()
+            ->with(['santri:id,nama_lengkap,tim,code,gender'])
+            ->whereHas('santri', fn ($q) => $q->whereIn('gender', ['putra', 'putri']))
+            ->where(function ($q) use ($monthStart, $monthEnd) {
+                $q->whereHas('sesi', fn ($sq) => $sq->whereBetween('tanggal', [
+                    $monthStart->toDateString(),
+                    $monthEnd->toDateString(),
+                ]))
+                ->orWhere(function ($legacy) use ($monthStart, $monthEnd) {
+                    $legacy->whereNull('sesi_id')
+                        ->whereBetween('created_at', [
+                            $monthStart->copy()->startOfDay(),
+                            $monthEnd->copy()->endOfDay(),
+                        ]);
+                });
+            });
+
+        if ($kategori !== 'all') {
+            $recordsQuery->whereHas('kegiatan', fn ($q) => $q->where('kategori', $kategori));
+        }
+
+        if ($waktu !== 'all') {
+            $recordsQuery->where(function ($q) use ($waktu) {
+                $q->where('waktu', $waktu)
+                    ->orWhereHas('kegiatan', fn ($kq) => $kq->where('waktu', $waktu));
+            });
+        }
+
+        $records = $recordsQuery->get(['id', 'santri_id', 'status', 'sesi_id', 'waktu', 'created_at']);
+
+        $buildGenderRekap = function (string $gender) use ($records): array {
+            $statusTemplate = [
+                'hadir' => 0,
+                'izin' => 0,
+                'sakit' => 0,
+                'alpha' => 0,
+            ];
+
+            $genderRecords = $records->filter(function (Presensi $record) use ($gender): bool {
+                return (string) ($record->santri?->gender ?? '') === $gender;
+            });
+
+            $statusCounts = $statusTemplate;
+            foreach ($genderRecords as $record) {
+                $status = strtolower((string) $record->status);
+                if (array_key_exists($status, $statusCounts)) {
+                    $statusCounts[$status]++;
+                }
+            }
+
+            $perSantri = $genderRecords
+                ->groupBy('santri_id')
+                ->map(function ($rows) use ($statusTemplate): array {
+                    /** @var Presensi $sample */
+                    $sample = $rows->first();
+                    $santri = $sample?->santri;
+
+                    $counts = $statusTemplate;
+                    foreach ($rows as $row) {
+                        $status = strtolower((string) $row->status);
+                        if (array_key_exists($status, $counts)) {
+                            $counts[$status]++;
+                        }
+                    }
+
+                    $total = $rows->count();
+
+                    return [
+                        'santri_id' => $santri?->id,
+                        'nama_lengkap' => $santri?->nama_lengkap ?? '-',
+                        'tim' => $santri?->tim_resolved ?? $santri?->tim ?? '-',
+                        'total_input' => $total,
+                        'hadir' => $counts['hadir'],
+                        'izin' => $counts['izin'],
+                        'sakit' => $counts['sakit'],
+                        'alpha' => $counts['alpha'],
+                        'persentase' => $total > 0 ? round(($counts['hadir'] / $total) * 100) : 0,
+                    ];
+                })
+                ->sort(function (array $a, array $b): int {
+                    if ($a['persentase'] === $b['persentase']) {
+                        return $b['hadir'] <=> $a['hadir'];
+                    }
+                    return $b['persentase'] <=> $a['persentase'];
+                })
+                ->values();
+
+            $totalInput = $genderRecords->count();
+
+            return [
+                'summary' => [
+                    'total_santri' => $perSantri->count(),
+                    'total_sesi' => $genderRecords->pluck('sesi_id')->filter()->unique()->count(),
+                    'total_input' => $totalInput,
+                    'hadir' => $statusCounts['hadir'],
+                    'izin' => $statusCounts['izin'],
+                    'sakit' => $statusCounts['sakit'],
+                    'alpha' => $statusCounts['alpha'],
+                    'persentase' => $totalInput > 0 ? round(($statusCounts['hadir'] / $totalInput) * 100) : 0,
+                ],
+                'rows' => $perSantri,
+            ];
+        };
+
+        $putra = $buildGenderRekap('putra');
+        $putri = $buildGenderRekap('putri');
+
+        return view('santri.presensi.rekap', [
+            'bulanInput' => $bulanInput,
+            'selectedKategori' => $kategori,
+            'selectedWaktu' => $waktu,
+            'kategoriOptions' => Kegiatan::KATEGORI,
+            'waktuOptions' => Presensi::WAKTU,
+            'putraSummary' => $putra['summary'],
+            'putriSummary' => $putri['summary'],
+            'putraRows' => $putra['rows'],
+            'putriRows' => $putri['rows'],
+        ]);
+    }
+
     public function create(): View
     {
         $this->ensureAllowedRole();
@@ -348,7 +547,7 @@ class PresensiController extends Controller
         }
 
         $managedKelas = collect();
-        $selectedKelasId = null;
+        $selectedKelasIds = [];
         $kelasNameMap = [];
 
         if ($isDegur) {
@@ -358,10 +557,9 @@ class PresensiController extends Controller
             abort_if($managedKelas->isEmpty(), 403, 'Akun dewan guru belum ditautkan ke kelas ajar.');
 
             $kelasNameMap = $managedKelas->pluck('nama', 'id')->all();
-            $selectedKelasId = (int) request()->integer('kelas_id', (int) $managedKelas->first()->id);
-            if (!array_key_exists($selectedKelasId, $kelasNameMap)) {
-                $selectedKelasId = (int) $managedKelas->first()->id;
-            }
+            $defaultKelasIds = array_map('intval', array_keys($kelasNameMap));
+            $requestedKelasIds = (array) request()->input('kelas_ids', $defaultKelasIds);
+            $selectedKelasIds = $this->resolveDegurKelasIds($requestedKelasIds);
         }
 
         $santriQuery = Santri::query()
@@ -371,11 +569,7 @@ class PresensiController extends Controller
         if ($isKetertiban) {
             $santriQuery->when($gender !== 'all', fn ($q) => $q->where('gender', $gender));
         } elseif ($isDegur) {
-            $degurKelasIds = array_keys($kelasNameMap);
-            $santriQuery->whereIn('kelas_id', $degurKelasIds);
-            if ($selectedKelasId) {
-                $santriQuery->where('kelas_id', $selectedKelasId);
-            }
+            $santriQuery->whereIn('kelas_id', $selectedKelasIds);
         } else {
             abort(403, 'Role ini tidak dapat mengakses form input presensi.');
         }
@@ -403,7 +597,7 @@ class PresensiController extends Controller
             'isDegur' => $isDegur,
             'gender' => $gender,
             'managedKelas' => $managedKelas,
-            'selectedKelasId' => $selectedKelasId,
+            'selectedKelasIds' => $selectedKelasIds,
             'kelasNameMap' => $kelasNameMap,
             'statuses' => Presensi::STATUS,
             'kategoriOptions' => Kegiatan::KATEGORI,
@@ -417,65 +611,90 @@ class PresensiController extends Controller
         $this->ensureSantriRole();
         $this->authorize('create', Presensi::class);
 
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        $isKetertiban = $user->isKetertiban();
+        $isDegur = $user->role === Role::DEWAN_GURU;
+
         $data = $request->validated();
+        $kelasIds = [];
+
+        $santriQuery = Santri::query()->orderBy('nama_lengkap');
+
+        if ($isDegur) {
+            $kelasIds = $this->resolveDegurKelasIds((array) ($data['kelas_ids'] ?? []));
+            abort_if(empty($kelasIds), 422, 'Pilih minimal satu kelas untuk membuat sesi presensi.');
+            $santriQuery->whereIn('kelas_id', $kelasIds);
+        } elseif ($isKetertiban) {
+            $genderScope = $data['gender_scope'] ?? 'putra';
+            if (!in_array($genderScope, ['putra', 'putri', 'all'], true)) {
+                $genderScope = 'putra';
+            }
+
+            $santriQuery->when($genderScope !== 'all', fn ($q) => $q->where('gender', $genderScope));
+        } else {
+            // fallback mode lama (single input)
+            abort_if(empty($data['santri_id'] ?? null), 422, 'Santri tidak valid untuk input presensi.');
+            $this->assertWritableSantriIds([(int) $data['santri_id']]);
+            $santriQuery->where('id', (int) $data['santri_id']);
+        }
+
+        $santriList = $santriQuery->get(['id', 'nama_lengkap']);
+        abort_if($santriList->isEmpty(), 422, 'Tidak ada santri dalam sesi presensi ini.');
+
+        $inputPresensi = (array) ($data['presensi'] ?? []);
+
+        if ($isDegur || $isKetertiban) {
+            $missingCount = $santriList->filter(function (Santri $santri) use ($inputPresensi): bool {
+                $status = $inputPresensi[$santri->id] ?? null;
+                return !in_array($status, Presensi::STATUS, true);
+            })->count();
+
+            if ($missingCount > 0) {
+                throw ValidationException::withMessages([
+                    'presensi' => "Masih ada {$missingCount} santri yang belum dipilih status kehadirannya.",
+                ]);
+            }
+        }
 
         $tanggal = Carbon::parse($data['tanggal'])->startOfDay();
-
-        // Batch mode: presensi[santri_id] => status
-        if (!empty($data['presensi'] ?? [])) {
+        DB::transaction(function () use ($data, $tanggal, $kelasIds, $santriList, $inputPresensi): void {
             $kegiatan = Kegiatan::firstOrCreate(
                 ['kategori' => $data['kategori'], 'waktu' => $data['waktu']],
                 ['catatan' => null]
             );
 
-            $santriIds = array_keys($data['presensi']);
-            $this->assertWritableSantriIds($santriIds);
-            $santriList = Santri::whereIn('id', $santriIds)->get(['id','nama_lengkap']);
+            $sesi = Sesi::create([
+                'kegiatan_id' => $kegiatan->id,
+                'tanggal' => $tanggal->toDateString(),
+                'catatan' => $data['catatan'] ?? null,
+            ]);
+
+            $sesi->kelas()->sync($kelasIds);
 
             foreach ($santriList as $santri) {
-                $status = $data['presensi'][$santri->id] ?? null;
-                if (! $status) {
-                    continue;
+                $status = (string) ($inputPresensi[$santri->id] ?? ($data['status'] ?? 'alpha'));
+                if (!in_array($status, Presensi::STATUS, true)) {
+                    $status = 'alpha';
                 }
 
-                $p = new Presensi();
-                $p->santri_id = $santri->id;
-                $p->nama = $santri->nama_lengkap;
-                $p->status = $status;
-                $p->kegiatan_id = $kegiatan->id;
-                $p->catatan = $data['catatan'] ?? null;
-                $p->waktu = $data['waktu'];
-                $p->created_at = $tanggal;
-                $p->updated_at = $tanggal;
-                $p->timestamps = false;
-                $p->save();
+                $presensi = new Presensi();
+                $presensi->santri_id = $santri->id;
+                $presensi->nama = $data['nama'] ?? $santri->nama_lengkap;
+                $presensi->status = $status;
+                $presensi->kegiatan_id = $kegiatan->id;
+                $presensi->sesi_id = $sesi->id;
+                $presensi->catatan = $data['catatan'] ?? null;
+                $presensi->waktu = $data['waktu'];
+                $presensi->created_at = $tanggal;
+                $presensi->updated_at = $tanggal;
+                $presensi->timestamps = false;
+                $presensi->save();
             }
+        });
 
-            return back()->with('success', 'Presensi batch berhasil disimpan');
-        }
-
-        // Single mode (fallback)
-        $this->assertWritableSantriIds([(int) $data['santri_id']]);
-        $santri = Santri::findOrFail($data['santri_id']);
-
-        $kegiatan = Kegiatan::firstOrCreate(
-            ['kategori' => $data['kategori'], 'waktu' => $data['waktu']],
-            ['catatan' => null]
-        );
-
-        $p = new Presensi();
-        $p->santri_id = $santri->id;
-        $p->nama = $data['nama'] ?? $santri->nama_lengkap;
-        $p->status = $data['status'];
-        $p->kegiatan_id = $kegiatan->id;
-        $p->catatan = $data['catatan'] ?? null;
-        $p->waktu = $data['waktu'];
-        $p->created_at = $tanggal;
-        $p->updated_at = $tanggal;
-        $p->timestamps = false;
-        $p->save();
-
-        return back()->with('success', 'Presensi berhasil ditambahkan');
+        return back()->with('success', 'Presensi sesi berhasil disimpan.');
     }
 
     public function show(Presensi $presensi): View
@@ -483,7 +702,7 @@ class PresensiController extends Controller
         $this->ensureSantriRole();
         $this->authorize('view', $presensi);
 
-        $presensi->load(['santri', 'kegiatan']);
+        $presensi->load(['santri', 'kegiatan', 'sesi']);
 
         return view('santri.presensi.show', compact('presensi'));
     }

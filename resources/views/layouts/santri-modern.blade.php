@@ -23,6 +23,31 @@
     /* Prevent layout shift when icons/fonts load */
     i[data-lucide] { width: 1.25rem; height: 1.25rem; display: inline-block; vertical-align: middle; }
     body { scrollbar-gutter: stable; }
+
+    /* Reusable elegant scrollbar */
+    .elegant-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: #10b981 #ecfdf5;
+    }
+    .elegant-scroll::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    .elegant-scroll::-webkit-scrollbar-track {
+      background: #ecfdf5;
+      border-radius: 9999px;
+    }
+    .elegant-scroll::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+      border: 2px solid #ecfdf5;
+      border-radius: 9999px;
+    }
+    .elegant-scroll::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, #278C46 0%, #278C46 100%);
+    }
+    .elegant-scroll::-webkit-scrollbar-corner {
+      background: transparent;
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800 overflow-y-scroll antialiased">
@@ -85,7 +110,7 @@
             <span class="text-base font-semibold text-gray-900 group-hover:text-emerald-700">PPM Khoirul Huda 2</span>
           </a>
         </div>
-        <nav class="flex-1 px-5 py-5 space-y-1 text-sm overflow-y-auto">
+        <nav class="elegant-scroll flex-1 px-5 py-5 space-y-1 text-sm overflow-y-auto">
           <div class="mb-4">
             <div class="relative">
               <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
@@ -156,6 +181,11 @@
                       <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}"
                          class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {{ request()->fullUrlIs(route('santri.presensi.index', ['mode' => 'team'])) ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
                         <span>Kehadiran Santri</span>
+                        <span class="ml-2 inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700">{{ $teamFeatureBadge }}</span>
+                      </a>
+                      <a href="{{ route('santri.presensi.rekap') }}"
+                         class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {{ request()->routeIs('santri.presensi.rekap') ? 'text-emerald-700 font-medium bg-emerald-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                        <span>Rekap Presensi</span>
                         <span class="ml-2 inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700">{{ $teamFeatureBadge }}</span>
                       </a>
                       <a href="{{ route('santri.kafarah.index', ['mode' => 'team']) }}"

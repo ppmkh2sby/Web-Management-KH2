@@ -72,6 +72,7 @@ Route::middleware(['auth'])
 
         Route::middleware('role:santri,pengurus,degur')->group(function () {
             Route::post('/data/progres-keilmuan/sync', [SantriProgressKeilmuanController::class, 'sync'])->name('data.progres.sync');
+            Route::get('/presensi/rekap', [SantriPresensiController::class, 'rekap'])->name('presensi.rekap');
             Route::resource('presensi', SantriPresensiController::class)->names('presensi')->only(['index','show','store','update','destroy','create']);
         });
 

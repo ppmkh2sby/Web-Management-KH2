@@ -1,15 +1,17 @@
 @extends('layouts.santri-modern')
 @section('title', 'Input Kehadiran')
+@section('content_panel_class', 'xl:h-[calc(100vh-40px)] xl:overflow-hidden')
 
 @section('content')
 @php
   $isDegur = $isDegur ?? false;
-  $degurViewportHeight = 'xl:h-[calc(100vh-5rem)]';
 @endphp
-<div class="space-y-3.5 {{ $isDegur ? $degurViewportHeight . ' xl:flex xl:flex-col' : '' }}">
+<div class="space-y-3.5 h-full min-h-0 xl:flex xl:flex-col">
   @if(session('success'))
-    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm">
-      {{ session('success') }}
+    <div id="success-toast" class="pointer-events-none fixed inset-x-0 top-4 z-[70] px-4">
+      <div class="mx-auto w-full max-w-4xl rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-md shadow-emerald-100/70">
+        {{ session('success') }}
+      </div>
     </div>
   @endif
   @if ($errors->any())
@@ -19,12 +21,18 @@
       @endforeach
     </div>
   @endif
+  <div id="missing-warning" class="pointer-events-none fixed inset-x-0 top-4 z-50 hidden px-4">
+    <div class="mx-auto w-full max-w-4xl rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-md shadow-amber-100/70"></div>
+  </div>
 
-  <form method="POST" action="{{ route('santri.presensi.store') }}" class="{{ $isDegur ? 'xl:flex-1 xl:min-h-0' : '' }}">
+  <form method="POST" action="{{ route('santri.presensi.store') }}" class="flex-1 min-h-0">
     @csrf
-    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 {{ $isDegur ? 'xl:h-full xl:min-h-0' : '' }}">
+    @if(! $isDegur)
+      <input type="hidden" name="gender_scope" value="{{ $gender }}">
+    @endif
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 h-full min-h-0">
       {{-- Main Content: Santri List --}}
-      <div class="space-y-5 {{ $isDegur ? 'xl:min-h-0 xl:flex xl:flex-col' : '' }}">
+      <div class="space-y-5 min-h-0 xl:flex xl:flex-col">
         {{-- Header --}}
         <div class="space-y-2">
           <nav class="flex items-center gap-2 text-sm text-gray-500">
@@ -43,14 +51,7 @@
               </p>
             </div>
             <div class="flex items-center gap-2">
-              @if($isDegur)
-                @foreach(($managedKelas ?? collect()) as $kelas)
-                  <a href="{{ route('santri.presensi.create', ['kelas_id' => $kelas->id]) }}"
-                     class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium {{ (int) ($selectedKelasId ?? 0) === (int) $kelas->id ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
-                    {{ $kelas->nama }}
-                  </a>
-                @endforeach
-              @else
+              @if(! $isDegur)
                 @foreach(['putra'=>'Putra','putri'=>'Putri'] as $val => $label)
                   <a href="{{ route('santri.presensi.create', ['gender' => $val]) }}"
                      class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium {{ $gender === $val ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
@@ -60,10 +61,36 @@
               @endif
             </div>
           </div>
+
+          @if($isDegur)
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="text-xs font-semibold uppercase tracking-wide text-gray-600">Kelas Sesi</span>
+                <div class="flex flex-wrap items-center gap-2">
+                  @foreach(($managedKelas ?? collect()) as $kelas)
+                    <label class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700">
+                      <input type="checkbox"
+                             class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 degur-kelas-filter"
+                             name="kelas_ids[]"
+                             value="{{ $kelas->id }}"
+                             @checked(in_array((int) $kelas->id, array_map('intval', (array) ($selectedKelasIds ?? [])), true)) />
+                      <span>{{ $kelas->nama }}</span>
+                    </label>
+                  @endforeach
+                </div>
+                <button type="button"
+                        id="apply-kelas-filter"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
+                  Tampilkan Santri
+                </button>
+              </div>
+              <p class="mt-2 text-[11px] text-gray-500">Centang satu atau lebih kelas untuk membuat sesi gabungan.</p>
+            </div>
+          @endif
         </div>
 
         {{-- Santri Table --}}
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden {{ $isDegur ? 'xl:flex-1 xl:min-h-0 xl:flex xl:flex-col' : '' }}">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden xl:flex-1 xl:min-h-0 xl:flex xl:flex-col">
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 class="text-base font-semibold text-gray-900">Santri</h2>
             <div class="relative w-72">
@@ -78,17 +105,12 @@
             $statusLabels = ['hadir' => 'Hadir', 'izin' => 'Izin', 'sakit' => 'Sakit', 'alpha' => 'Alpha'];
           @endphp
 
-          <div class="{{ $isDegur ? 'overflow-auto xl:flex-1 xl:min-h-0' : 'overflow-x-auto' }}">
+          <div class="elegant-scroll overflow-auto xl:flex-1 xl:min-h-0">
             <table class="w-full">
               <thead>
-                <tr class="bg-gray-50 border-b border-gray-200 {{ $isDegur ? 'sticky top-0 z-10' : '' }}">
+                <tr class="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                   <th class="px-5 py-3 text-left min-w-[360px]">
-                    <div class="flex items-center gap-3 text-sm font-semibold text-gray-700">
-                      <input type="checkbox"
-                             class="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
-                             id="select-all" />
-                      <label for="select-all" class="cursor-pointer">Nama</label>
-                    </div>
+                    <span class="text-sm font-semibold text-gray-700">Nama</span>
                   </th>
                   @foreach($statusLabels as $key => $label)
                     <th class="px-3 py-3 text-center w-24">
@@ -104,20 +126,16 @@
               </thead>
               <tbody class="divide-y divide-gray-100">
                 @forelse($santriList as $santri)
-                  <tr class="hover:bg-gray-50 transition-colors">
+                  <tr class="hover:bg-gray-50 transition-colors" data-santri-id="{{ $santri->id }}">
                     <td class="px-5 py-3">
-                      <div class="flex items-center gap-3">
-                        <input type="checkbox"
-                               class="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 santri-checkbox"
-                               value="{{ $santri->id }}" />
-                        <div class="flex flex-col">
-                          <span class="text-xs font-semibold text-gray-900 leading-5">{{ $santri->nama_lengkap }}</span>
-                          @if($isDegur)
-                            <span class="text-[11px] text-gray-500 mt-0.5">Kelas: {{ $kelasNameMap[$santri->kelas_id] ?? '-' }}</span>
-                          @else
-                            <span class="text-[11px] text-gray-500 mt-0.5">Tim: {{ $santri->tim_resolved ?? '-' }}</span>
-                          @endif
-                        </div>
+                      <div class="flex flex-col">
+                        <span class="text-xs font-semibold text-gray-900 leading-5">{{ $santri->nama_lengkap }}</span>
+                        @if($isDegur)
+                          <span class="text-[11px] text-gray-500 mt-0.5">Kelas: {{ $kelasNameMap[$santri->kelas_id] ?? '-' }}</span>
+                        @else
+                          <span class="text-[11px] text-gray-500 mt-0.5">Tim: {{ $santri->tim_resolved ?? '-' }}</span>
+                        @endif
+                        <span class="row-missing-indicator hidden text-[11px] mt-1 font-medium text-rose-600">Pilih status kehadiran</span>
                       </div>
                     </td>
                     @foreach(array_keys($statusLabels) as $status)
@@ -207,8 +225,8 @@
       </div>
 
       {{-- Right Side: Input Form --}}
-      <div class="mt-6 xl:mt-0 {{ $isDegur ? 'xl:h-full xl:min-h-0 xl:self-stretch' : 'xl:sticky xl:top-4 xl:self-start' }}">
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm {{ $isDegur ? 'xl:h-full xl:overflow-hidden p-3 space-y-3 flex flex-col' : 'p-4 space-y-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto' }}">
+      <div class="mt-6 xl:mt-0 xl:h-full xl:min-h-0 xl:self-stretch">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm xl:h-full xl:overflow-hidden p-4 space-y-4 flex flex-col">
           {{-- Stats Cards --}}
           <div class="grid grid-cols-4 {{ $isDegur ? 'gap-2' : 'gap-2.5' }}">
             <div class="rounded-xl border border-gray-200 bg-white text-center {{ $isDegur ? 'px-2 py-2' : 'px-3 py-3' }}">
@@ -298,10 +316,20 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const selectAll = document.getElementById('select-all');
-    const rowCheckboxes = Array.from(document.querySelectorAll('.santri-checkbox'));
+    const successToast = document.getElementById('success-toast');
+    if (successToast) {
+      setTimeout(() => {
+        successToast.classList.add('hidden');
+      }, 1500);
+    }
+
+    const presensiForm = document.querySelector('form[action="{{ route('santri.presensi.store') }}"]');
+    const missingWarning = document.getElementById('missing-warning');
+    const missingWarningText = missingWarning?.querySelector('div');
+    const santriRows = Array.from(document.querySelectorAll('tr[data-santri-id]'));
     const statusHeaderCheckboxes = Array.from(document.querySelectorAll('.status-select-all'));
     const statusRadios = Array.from(document.querySelectorAll('.status-radio'));
+    const applyKelasFilterBtn = document.getElementById('apply-kelas-filter');
     const statEls = {
       hadir: document.getElementById('stat-hadir'),
       izin: document.getElementById('stat-izin'),
@@ -309,7 +337,83 @@
       alpha: document.getElementById('stat-alpha'),
     };
 
-    if (!selectAll || rowCheckboxes.length === 0) return;
+    if (applyKelasFilterBtn) {
+      applyKelasFilterBtn.addEventListener('click', () => {
+        const selectedKelasIds = Array.from(document.querySelectorAll('.degur-kelas-filter:checked'))
+          .map(el => el.value)
+          .filter(Boolean);
+
+        if (selectedKelasIds.length === 0) {
+          alert('Pilih minimal satu kelas.');
+          return;
+        }
+
+        const params = new URLSearchParams();
+        selectedKelasIds.forEach(id => params.append('kelas_ids[]', id));
+        window.location.href = `{{ route('santri.presensi.create') }}?${params.toString()}`;
+      });
+    }
+
+    let submitAttempted = false;
+    let warningTimer = null;
+
+    const hideMissingWarning = () => {
+      if (!missingWarning) {
+        return;
+      }
+      missingWarning.classList.add('hidden');
+      if (missingWarningText) {
+        missingWarningText.textContent = '';
+      }
+      if (warningTimer) {
+        clearTimeout(warningTimer);
+        warningTimer = null;
+      }
+    };
+
+    const showMissingWarning = (missingCount) => {
+      if (!missingWarning) {
+        return;
+      }
+      if (missingWarningText) {
+        missingWarningText.textContent = `Masih ada ${missingCount} santri yang belum dipilih status kehadirannya.`;
+      }
+      missingWarning.classList.remove('hidden');
+      if (warningTimer) {
+        clearTimeout(warningTimer);
+      }
+      warningTimer = setTimeout(() => {
+        missingWarning.classList.add('hidden');
+        warningTimer = null;
+      }, 3000);
+    };
+
+    const updateMissingState = ({ reveal = false } = {}) => {
+      const missingRowIds = [];
+      const shouldReveal = reveal || submitAttempted;
+
+      santriRows.forEach((row) => {
+        const santriId = row.dataset.santriId;
+        const checked = document.querySelector(`input[name="presensi[${santriId}]"]:checked`);
+        const missing = !checked;
+
+        if (missing) {
+          missingRowIds.push(santriId);
+        }
+
+        row.classList.toggle('bg-rose-50', shouldReveal && missing);
+        const indicator = row.querySelector('.row-missing-indicator');
+        if (indicator) {
+          indicator.classList.toggle('hidden', !(shouldReveal && missing));
+        }
+      });
+
+      if (missingRowIds.length === 0) {
+        hideMissingWarning();
+      }
+
+      return missingRowIds;
+    };
 
     const updateSummary = () => {
       const counts = { hadir: 0, izin: 0, sakit: 0, alpha: 0 };
@@ -321,22 +425,9 @@
       Object.entries(statEls).forEach(([key, el]) => {
         if (el) el.textContent = counts[key] ?? 0;
       });
+
+      updateMissingState();
     };
-
-    const syncHeaderCheckbox = () => {
-      const checkedCount = rowCheckboxes.filter(cb => cb.checked).length;
-      selectAll.indeterminate = checkedCount > 0 && checkedCount < rowCheckboxes.length;
-      selectAll.checked = checkedCount === rowCheckboxes.length;
-    };
-
-    selectAll.addEventListener('change', () => {
-      rowCheckboxes.forEach(cb => {
-        cb.checked = selectAll.checked;
-      });
-      syncHeaderCheckbox();
-    });
-
-    rowCheckboxes.forEach(cb => cb.addEventListener('change', syncHeaderCheckbox));
 
     statusHeaderCheckboxes.forEach(headerCb => {
       headerCb.addEventListener('change', () => {
@@ -365,7 +456,19 @@
 
     statusRadios.forEach(r => r.addEventListener('change', updateSummary));
 
-    syncHeaderCheckbox();
+    if (presensiForm) {
+      presensiForm.addEventListener('submit', (event) => {
+        submitAttempted = true;
+        const missingRows = updateMissingState({ reveal: true });
+        if (missingRows.length > 0) {
+          event.preventDefault();
+          showMissingWarning(missingRows.length);
+          const firstMissing = document.querySelector(`tr[data-santri-id="${missingRows[0]}"]`);
+          firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+    }
+
     updateSummary();
   });
 </script>

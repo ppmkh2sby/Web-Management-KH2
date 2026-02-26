@@ -24,4 +24,9 @@ class Kegiatan extends Model
     {
         return $this->hasMany(Presensi::class);
     }
+
+    public function sesis(): HasMany
+    {
+        return $this->hasMany(Sesi::class);
+    }
 }

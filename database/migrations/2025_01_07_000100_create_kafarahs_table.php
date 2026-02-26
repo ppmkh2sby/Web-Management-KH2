@@ -13,7 +13,9 @@ return new class extends Migration
     {
         Schema::create('kafarahs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('santri_id')->constrained()->cascadeOnDelete();
+            // Tidak pakai FK langsung di migration ini karena urutan timestamp
+            // lebih awal daripada migration create_santris_table.
+            $table->foreignId('santri_id');
             $table->date('tanggal');
             $table->string('status', 20);
             $table->string('kegiatan')->nullable();
