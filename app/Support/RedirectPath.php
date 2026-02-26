@@ -17,9 +17,11 @@ class RedirectPath
         }
 
         if ($user->role === Role::WALI) {
-            $firstChildCode = $user->waliOf()
-                ->orderBy('santris.nama_lengkap')
-                ->value('santris.code');
+            $firstChildCode = $user->relationLoaded('waliOf')
+                ? collect($user->waliOf)->sortBy('nama_lengkap')->first()?->code
+                : $user->waliOf()
+                    ->orderBy('santris.nama_lengkap')
+                    ->value('santris.code');
 
             if (filled($firstChildCode)) {
                 return route('wali.anak.overview', ['santriCode' => $firstChildCode]);

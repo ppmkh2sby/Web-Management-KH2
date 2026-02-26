@@ -12,10 +12,14 @@ class LoadUserRelations
     {
         if (auth()->check()) {
             $user = auth()->user();
-            $user?->loadMissing('santri');
+            $role = $user?->role;
 
-            if ($user?->role === Role::WALI) {
-                $user->loadMissing('waliOf');
+            if (in_array($role, [Role::SANTRI, Role::PENGURUS, Role::DEWAN_GURU], true)) {
+                $user?->loadMissing(['santri:id,user_id,code,nama_lengkap,tim,gender']);
+            }
+
+            if ($role === Role::WALI) {
+                $user?->loadMissing(['waliOf:id,code,nama_lengkap,tim,gender']);
             }
         }
 

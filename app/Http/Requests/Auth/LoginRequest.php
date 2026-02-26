@@ -6,12 +6,16 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    /**
+     * @var array<int, string>
+     */
+    private const IDENTIFIER_COLUMNS = ['login_code', 'email'];
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -74,27 +78,7 @@ class LoginRequest extends FormRequest
      */
     private function resolveIdentifierColumns(): array
     {
-        static $cached;
-
-        if (is_array($cached)) {
-            return $cached;
-        }
-
-        $cached = [];
-
-        if (Schema::hasColumn('users', 'login_code')) {
-            $cached[] = 'login_code';
-        }
-
-        if (Schema::hasColumn('users', 'email')) {
-            $cached[] = 'email';
-        }
-
-        if (empty($cached)) {
-            $cached[] = 'email';
-        }
-
-        return $cached;
+        return self::IDENTIFIER_COLUMNS;
     }
 
     /**

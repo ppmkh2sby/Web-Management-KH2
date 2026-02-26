@@ -20,6 +20,9 @@ class SantriModernLayoutComposer
         'assets/images/logo.png',
     ];
 
+    private static bool $logoResolved = false;
+    private static ?string $cachedLogoRel = null;
+
     public function compose(View $view): void
     {
         /** @var User|null $currentUser */
@@ -29,7 +32,7 @@ class SantriModernLayoutComposer
         $isWali = $roleValue === Role::WALI->value;
         $isSantri = $roleValue === Role::SANTRI->value;
         $isStaffRole = in_array($roleValue, [Role::PENGURUS->value, Role::DEWAN_GURU->value], true);
-        $isKetertiban = (bool) $currentUser?->isKetertiban();
+        $isKetertiban = $isSantri && (bool) $currentUser?->isKetertiban();
 
         $waliChildren = $isWali ? collect($currentUser?->waliOf ?? []) : collect();
         $activeChildCode = $this->resolveActiveChildCode($isWali, $waliChildren);
@@ -134,12 +137,22 @@ class SantriModernLayoutComposer
 
     private function resolveLogoRel(): ?string
     {
+        if (self::$logoResolved) {
+            return self::$cachedLogoRel;
+        }
+
         foreach (self::LOGO_CANDIDATES as $candidate) {
             if (file_exists(public_path($candidate))) {
-                return $candidate;
+                self::$cachedLogoRel = $candidate;
+                self::$logoResolved = true;
+
+                return self::$cachedLogoRel;
             }
         }
 
-        return null;
+        self::$logoResolved = true;
+        self::$cachedLogoRel = null;
+
+        return self::$cachedLogoRel;
     }
 }

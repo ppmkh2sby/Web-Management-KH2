@@ -313,7 +313,13 @@ class PresensiController extends Controller
         $latestUpdates = collect();
 
         if ($mode === 'mine' && $santriId) {
-            $legacyPresensiTotal = Presensi::where('santri_id', $santriId)->count();
+            $statusCounts = Presensi::query()
+                ->where('santri_id', $santriId)
+                ->selectRaw('status, count(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
+
+            $legacyPresensiTotal = (int) $statusCounts->sum();
 
             $santri = Santri::query()->select(['id', 'kelas_id'])->find($santriId);
             if ($santri?->kelas_id) {
@@ -330,11 +336,11 @@ class PresensiController extends Controller
                 $stats['total_pertemuan'] = $legacyPresensiTotal;
             }
             
-            // Count by status
-            $stats['hadir'] = Presensi::where('santri_id', $santriId)->where('status', 'hadir')->count();
-            $stats['izin'] = Presensi::where('santri_id', $santriId)->where('status', 'izin')->count();
-            $stats['sakit'] = Presensi::where('santri_id', $santriId)->where('status', 'sakit')->count();
-            $stats['alpa'] = Presensi::where('santri_id', $santriId)->where('status', 'alpha')->count();
+            // Count by status from a single grouped query.
+            $stats['hadir'] = (int) ($statusCounts['hadir'] ?? 0);
+            $stats['izin'] = (int) ($statusCounts['izin'] ?? 0);
+            $stats['sakit'] = (int) ($statusCounts['sakit'] ?? 0);
+            $stats['alpa'] = (int) ($statusCounts['alpha'] ?? 0);
 
             // Backward compatibility:
             // jika data historis belum punya sesi, pakai total record presensi lama.

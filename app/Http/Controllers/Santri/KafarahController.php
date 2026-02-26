@@ -154,19 +154,16 @@ class KafarahController extends Controller
         $latestUpdates = collect();
 
         if ($mode === 'mine' && $santriId) {
-            // Total pelanggaran (count all kafarahs for this santri)
-            $stats['total'] = Kafarah::where('santri_id', $santriId)->count();
-            
-            // Get all kafarah records
-            $allKafarah = Kafarah::where('santri_id', $santriId)->get();
-            
-            // Total kafarah (sum of all tanggungan values)
-            $stats['total_kafarah'] = $allKafarah->sum('tanggungan');
-            
-            // Jumlah setor (sum of jumlah_setor)
-            $stats['jumlah_setor'] = $allKafarah->sum('jumlah_setor');
-            
-            // Tanggungan (total_kafarah - jumlah_setor)
+            $aggregate = Kafarah::query()
+                ->where('santri_id', $santriId)
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw('COALESCE(SUM(tanggungan), 0) as total_kafarah')
+                ->selectRaw('COALESCE(SUM(jumlah_setor), 0) as jumlah_setor')
+                ->first();
+
+            $stats['total'] = (int) ($aggregate?->total ?? 0);
+            $stats['total_kafarah'] = (int) ($aggregate?->total_kafarah ?? 0);
+            $stats['jumlah_setor'] = (int) ($aggregate?->jumlah_setor ?? 0);
             $stats['tanggungan'] = $stats['total_kafarah'] - $stats['jumlah_setor'];
 
             // Get latest 3 updates

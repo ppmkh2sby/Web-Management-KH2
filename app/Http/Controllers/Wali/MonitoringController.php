@@ -15,12 +15,14 @@ use Illuminate\View\View;
 
 class MonitoringController extends Controller
 {
+    private ?Collection $connectedChildrenCache = null;
+
     public function main(): RedirectResponse
     {
-        $firstChildCode = Auth::user()
-            ->waliOf()
-            ->orderBy('santris.nama_lengkap')
-            ->value('santris.code');
+        $firstChildCode = $this->connectedChildren()
+            ->sortBy('nama_lengkap')
+            ->first()
+            ?->code;
 
         if (! filled($firstChildCode)) {
             return redirect()
@@ -36,12 +38,18 @@ class MonitoringController extends Controller
      */
     protected function connectedChildren(): Collection
     {
+        if ($this->connectedChildrenCache instanceof Collection) {
+            return $this->connectedChildrenCache;
+        }
+
         /** @var BelongsToMany $relation */
         $relation = Auth::user()
             ->waliOf()
             ->with(['user', 'kelas']);
 
-        return $relation->get();
+        $this->connectedChildrenCache = $relation->get();
+
+        return $this->connectedChildrenCache;
     }
 
     /**
@@ -49,14 +57,7 @@ class MonitoringController extends Controller
      */
     protected function loadSantri(string $santriCode): Santri
     {
-        /** @var BelongsToMany $relation */
-        $relation = Auth::user()
-            ->waliOf()
-            ->with(['user', 'kelas']);
-
-        $santri = $relation
-            ->where('santris.code', $santriCode)
-            ->first();
+        $santri = $this->connectedChildren()->firstWhere('code', $santriCode);
 
         abort_if(! $santri, 404);
 

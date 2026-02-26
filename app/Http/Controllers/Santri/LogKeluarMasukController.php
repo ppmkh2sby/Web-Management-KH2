@@ -51,9 +51,11 @@ class LogKeluarMasukController extends Controller
         $user = auth()->user();
 
         if ($user->role === Role::WALI) {
-            $firstChildCode = $user->waliOf()
-                ->orderBy('santris.nama_lengkap')
-                ->value('santris.code');
+            $firstChildCode = $user->relationLoaded('waliOf')
+                ? collect($user->waliOf)->sortBy('nama_lengkap')->first()?->code
+                : $user->waliOf()
+                    ->orderBy('santris.nama_lengkap')
+                    ->value('santris.code');
 
             if (filled($firstChildCode)) {
                 return redirect()->route('wali.anak.log', ['santriCode' => $firstChildCode]);
