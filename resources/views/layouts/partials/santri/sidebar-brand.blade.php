@@ -1,5 +1,5 @@
 <div class="px-6 py-5 border-b border-gray-100">
-  <a href="{{ $brandRoute }}" class="flex items-center gap-2.5 group">
+  <a href="{{ $brandRoute }}" wire:navigate class="flex items-center gap-2.5 group">
     @if($logoRel)
       <img class="h-8 w-8 object-contain" src="{{ asset($logoRel) }}" alt="PPM KH2">
     @else

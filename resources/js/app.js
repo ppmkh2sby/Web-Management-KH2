@@ -10,3 +10,7 @@ Alpine.start();
 document.addEventListener('DOMContentLoaded', () => {
     createIcons({ icons });
 });
+
+document.addEventListener('livewire:navigated', () => {
+    createIcons({ icons });
+});

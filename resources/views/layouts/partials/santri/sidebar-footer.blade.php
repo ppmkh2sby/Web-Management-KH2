@@ -31,11 +31,11 @@
          x-transition:leave-end="transform opacity-0 scale-95"
          class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
          style="display: none;">
-      <a href="{{ route('santri.profile') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+      <a href="{{ route('santri.profile') }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
         <i data-lucide="user" class="w-4 h-4"></i>
         <span>Profil</span>
       </a>
-      <a href="{{ route('santri.setting') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+      <a href="{{ route('santri.setting') }}" wire:navigate class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
         <i data-lucide="settings" class="w-4 h-4"></i>
         <span>Pengaturan</span>
       </a>

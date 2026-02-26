@@ -1,8 +1,10 @@
 #!/bin/bash
-echo "Running deployment optimizations..."
+set -e
+echo "=== PPM KH2 - Running deployment optimizations ==="
+
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan event:cache
-npm run build
-echo "Done."
+
+echo "=== Optimization complete ==="
