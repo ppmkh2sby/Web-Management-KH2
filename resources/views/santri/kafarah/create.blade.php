@@ -24,7 +24,7 @@
         {{-- Header --}}
         <div class="space-y-2">
           <nav class="flex items-center gap-2 text-sm text-gray-500">
-            <a href="{{ route('santri.dashboard') }}" class="hover:text-gray-800">Dashboard</a>
+            <a href="{{ route('santri.dashboard') }}" wire:navigate class="hover:text-gray-800">Dashboard</a>
             <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-400"></i>
             <span>Kafarah Santri</span>
             <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-400"></i>
@@ -38,7 +38,7 @@
             </div>
             <div class="flex items-center gap-2">
               @foreach(['putra'=>'Putra','putri'=>'Putri'] as $val => $label)
-                <a href="{{ route('santri.kafarah.create', ['gender' => $val]) }}"
+                <a href="{{ route('santri.kafarah.create', ['gender' => $val]) }}" wire:navigate
                    class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium {{ $gender === $val ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
                   {{ $label }}
                 </a>

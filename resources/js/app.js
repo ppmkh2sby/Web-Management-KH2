@@ -7,10 +7,14 @@ window.Alpine = Alpine;
 
 Alpine.start();
 
-document.addEventListener('DOMContentLoaded', () => {
+window.refreshLucideIcons = () => {
     createIcons({ icons });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.refreshLucideIcons();
 });
 
 document.addEventListener('livewire:navigated', () => {
-    createIcons({ icons });
+    window.refreshLucideIcons();
 });

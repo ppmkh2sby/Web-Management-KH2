@@ -106,7 +106,7 @@
               <h2 class="text-lg font-semibold text-gray-900">Rekap Kehadiran Santri</h2>
               <p class="text-sm text-gray-500">Ringkasan status kehadiran seluruh data presensi.</p>
             </div>
-            <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat detail</a>
+            <a href="{{ route('santri.presensi.index', ['mode' => 'team']) }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat detail</a>
           </div>
           <div class="mt-4 grid grid-cols-5 gap-2 text-center text-xs">
             <div class="rounded-lg bg-gray-50 p-2"><p class="text-gray-500">Hadir</p><p class="font-semibold text-gray-900">{{ $staffAttendanceStats['hadir'] }}</p></div>
@@ -127,7 +127,7 @@
               <h2 class="text-lg font-semibold text-gray-900">Pencapaian Progress Santri</h2>
               <p class="text-sm text-gray-500">Peringkat rata-rata progres keilmuan per santri.</p>
             </div>
-            <a href="{{ route('santri.data.progres') }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat detail</a>
+            <a href="{{ route('santri.data.progres') }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat detail</a>
           </div>
           <div class="mt-4 space-y-2">
             @forelse($staffProgressLeaders as $row)
@@ -154,7 +154,7 @@
             <h2 class="text-lg font-semibold text-gray-900">Log Terbaru Keluar/Masuk</h2>
             <p class="text-sm text-gray-500">Catatan terbaru aktivitas keluar/masuk seluruh santri.</p>
           </div>
-          <a href="{{ route('santri.data.log') }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat detail</a>
+          <a href="{{ route('santri.data.log') }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat detail</a>
         </div>
         <div class="mt-4 space-y-2">
           @forelse($staffRecentLogs as $row)
@@ -258,19 +258,19 @@
 
     @if($isSantriContext)
       <div class="relative mt-5 flex flex-wrap gap-2">
-        <a href="{{ route('santri.presensi.index', ['mode' => 'mine']) }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
+        <a href="{{ route('santri.presensi.index', ['mode' => 'mine']) }}" wire:navigate class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
           <i data-lucide="clipboard-check" class="h-4 w-4"></i>
           Kehadiran Saya
         </a>
-        <a href="{{ route('santri.kafarah.index', ['mode' => 'mine']) }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
+        <a href="{{ route('santri.kafarah.index', ['mode' => 'mine']) }}" wire:navigate class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
           <i data-lucide="shield-alert" class="h-4 w-4"></i>
           Kafarah Saya
         </a>
-        <a href="{{ route('santri.data.progres') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
+        <a href="{{ route('santri.data.progres') }}" wire:navigate class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
           <i data-lucide="book-marked" class="h-4 w-4"></i>
           Progress Keilmuan
         </a>
-        <a href="{{ route('santri.data.log', ['mode' => 'mine']) }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
+        <a href="{{ route('santri.data.log', ['mode' => 'mine']) }}" wire:navigate class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:border-emerald-300 hover:text-emerald-700">
           <i data-lucide="door-open" class="h-4 w-4"></i>
           Log Keluar/Masuk
         </a>
@@ -315,7 +315,7 @@
           <p class="text-sm text-gray-500">Ringkasan kehadiran dan catatan terbaru.</p>
         </div>
         @if($isSantriContext)
-          <a href="{{ route('santri.presensi.index', ['mode' => 'mine']) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
+          <a href="{{ route('santri.presensi.index', ['mode' => 'mine']) }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
         @else
           <span class="text-xs font-semibold text-gray-400">Hanya akun santri</span>
         @endif
@@ -357,7 +357,7 @@
           <p class="text-sm text-gray-500">Pantau setoran dan tanggungan terkini.</p>
         </div>
         @if($isSantriContext)
-          <a href="{{ route('santri.kafarah.index', ['mode' => 'mine']) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
+          <a href="{{ route('santri.kafarah.index', ['mode' => 'mine']) }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
         @else
           <span class="text-xs font-semibold text-gray-400">Hanya akun santri</span>
         @endif
@@ -394,7 +394,7 @@
           <p class="text-sm text-gray-500">Update materi Al-Quran dan Al-Hadits terbaru.</p>
         </div>
         @if($isSantriContext)
-          <a href="{{ route('santri.data.progres') }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
+          <a href="{{ route('santri.data.progres') }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
         @else
           <span class="text-xs font-semibold text-gray-400">Hanya akun santri</span>
         @endif
@@ -437,7 +437,7 @@
           <p class="text-sm text-gray-500">Status izin keluar/masuk terbaru Anda.</p>
         </div>
         @if($isSantriContext)
-          <a href="{{ route('santri.data.log', ['mode' => 'mine']) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
+          <a href="{{ route('santri.data.log', ['mode' => 'mine']) }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
         @else
           <span class="text-xs font-semibold text-gray-400">Hanya akun santri</span>
         @endif
@@ -474,3 +474,4 @@
 </div>
 @endif
 @endsection
+

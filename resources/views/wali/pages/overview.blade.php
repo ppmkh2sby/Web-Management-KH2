@@ -111,7 +111,7 @@
                     <h3 class="text-lg font-semibold">Kehadiran Terbaru</h3>
                     <p class="text-sm text-gray-500">5 data kehadiran terakhir</p>
                 </div>
-                <a href="{{ route('wali.anak.presensi', $santri->code) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
+                <a href="{{ route('wali.anak.presensi', $santri->code) }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
             </div>
             @if($kehadiranRecent->isEmpty())
                 <div class="mt-4 rounded-2xl border border-dashed border-gray-200 p-5 text-sm text-gray-500 text-center">
@@ -141,7 +141,7 @@
                     <h3 class="text-lg font-semibold">Progress Keilmuan</h3>
                     <p class="text-sm text-gray-500">5 update progres terakhir</p>
                 </div>
-                <a href="{{ route('wali.anak.progres', $santri->code) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
+                <a href="{{ route('wali.anak.progres', $santri->code) }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
             </div>
             @if($progressRecent->isEmpty())
                 <div class="rounded-2xl border border-dashed border-gray-200 p-4 text-sm text-gray-500 text-center">
@@ -171,7 +171,7 @@
                     <h3 class="text-lg font-semibold">Log Keluar/Masuk</h3>
                     <p class="text-sm text-gray-500">5 data log terakhir</p>
                 </div>
-                <a href="{{ route('wali.anak.log', $santri->code) }}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
+                <a href="{{ route('wali.anak.log', $santri->code) }}" wire:navigate class="text-xs font-semibold text-emerald-700 hover:text-emerald-800">Lihat semua</a>
             </div>
             @if($logRecent->isEmpty())
                 <div class="rounded-2xl border border-dashed border-gray-200 p-4 text-sm text-gray-500 text-center">
@@ -198,3 +198,4 @@
     </div>
 </div>
 @endsection
+

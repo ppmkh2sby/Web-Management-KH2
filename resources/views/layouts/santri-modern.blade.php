@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+  @php($livewireReady = \Illuminate\Support\Facades\Route::has('livewire.update'))
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>@yield('title','Santri')</title>
   @vite(['resources/css/app.css','resources/js/app.js'])
-  @livewireStyles
+  @if($livewireReady)
+    @livewireStyles
+  @endif
   <style>
     [wire\:loading-bar] {
       position: fixed;
@@ -58,10 +61,12 @@
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800 overflow-y-scroll antialiased">
-  <div wire:loading.delay wire:target="navigate"
-       class="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-400 to-emerald-600 z-[9999]"
-       style="display:none;">
-  </div>
+  @if($livewireReady)
+    <div wire:loading.delay wire:target="navigate"
+         class="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-400 to-emerald-600 z-[9999]"
+         style="display:none;">
+    </div>
+  @endif
   <div class="layout-shell min-h-screen p-5">
     <div class="layout-grid grid grid-cols-[280px_1fr] gap-5">
       <aside class="sidebar-shell bg-white rounded-3xl shadow-lg border border-gray-100 h-[calc(100vh-40px)] sticky top-5 overflow-hidden flex flex-col"
@@ -82,6 +87,8 @@
       </section>
     </div>
   </div>
-  @livewireScripts
+  @if($livewireReady)
+    @livewireScripts
+  @endif
 </body>
 </html>

@@ -163,7 +163,7 @@
         <h2 class="text-2xl font-semibold text-gray-900">30 catatan terakhir</h2>
       </div>
       <div class="flex gap-2 text-sm">
-        <a href="{{ route('santri.home') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-gray-600 hover:text-gray-800">
+        <a href="{{ route('santri.home') }}" wire:navigate class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-gray-600 hover:text-gray-800">
           <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali
         </a>
         <button class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">
@@ -272,3 +272,4 @@
   </div>
 </div>
 @endsection
+

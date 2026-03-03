@@ -10,7 +10,7 @@
                 <h2 class="text-2xl font-semibold text-gray-900">{{ $santri->nama_lengkap ?? 'Santri' }}</h2>
                 <p class="text-sm text-gray-500">Pantau seluruh data keluar/masuk anak Anda.</p>
             </div>
-            <a href="{{ route('wali.anak.overview', $santri->code) }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:text-gray-800">
+            <a href="{{ route('wali.anak.overview', $santri->code) }}" wire:navigate class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:text-gray-800">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali
             </a>
         </div>
@@ -60,3 +60,4 @@
     @endif
 </div>
 @endsection
+

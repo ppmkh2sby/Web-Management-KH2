@@ -8,7 +8,7 @@
     $recent = $logRows->take(5);
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-6" data-log-ajax-root data-log-mode="{{ $mode ?? 'input' }}" data-log-staff="{{ $isStaffViewer ? '1' : '0' }}">
   @if(session('success'))
     <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
       {{ session('success') }}
@@ -31,9 +31,10 @@
           <h2 class="text-2xl font-semibold text-gray-900">Semua Santri</h2>
           <p class="mt-1 text-sm text-gray-500">Pengurus dan dewan guru dapat melihat seluruh log santri.</p>
         </div>
-        <form method="GET" action="{{ route('santri.data.log') }}" class="flex items-center gap-2">
+        <form method="GET" action="{{ route('santri.data.log') }}" class="flex items-center gap-2" id="log-filter-form">
           <input type="hidden" name="gender_filter" value="{{ $genderFilter }}">
-          <input type="text" name="search" value="{{ $search }}" placeholder="Cari nama/tujuan"
+          <input type="hidden" name="page" value="{{ method_exists($logs, 'currentPage') ? $logs->currentPage() : 1 }}" id="log-page-input">
+          <input type="text" name="search" value="{{ $search }}" placeholder="Cari nama/tujuan" id="log-search-input"
                  class="w-56 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-emerald-500">
           <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
             Cari
@@ -43,7 +44,7 @@
 
       <div class="flex flex-wrap gap-2">
         @foreach(['all' => 'Semua', 'putra' => 'Putra', 'putri' => 'Putri'] as $key => $label)
-          <a href="{{ route('santri.data.log', ['gender_filter' => $key, 'search' => $search ?: null]) }}"
+          <a href="{{ route('santri.data.log', ['gender_filter' => $key, 'search' => $search ?: null]) }}" data-log-filter-link
              class="rounded-lg px-3 py-1.5 text-sm font-semibold {{ $genderFilter === $key ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
             {{ $label }}
           </a>
@@ -51,56 +52,13 @@
       </div>
     </div>
 
-    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-      @if($logRows->isEmpty())
-        <div class="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
-          Belum ada data log keluar/masuk.
-        </div>
-      @else
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-gray-100 text-left text-gray-500">
-                <th class="py-2 pr-4">Tanggal</th>
-                <th class="py-2 pr-4">Santri</th>
-                <th class="py-2 pr-4">Gender</th>
-                <th class="py-2 pr-4">Tujuan</th>
-                <th class="py-2 pr-4">Keluar</th>
-                <th class="py-2 pr-4">Masuk</th>
-                <th class="py-2">Catatan</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($logRows as $log)
-                @php
-                  $gender = strtolower((string) ($log->santri->gender ?? ''));
-                  $genderLabel = $gender === 'putra' ? 'Putra' : ($gender === 'putri' ? 'Putri' : '-');
-                  $genderClass = $gender === 'putra'
-                    ? 'bg-blue-100 text-blue-700'
-                    : ($gender === 'putri' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-600');
-                @endphp
-                <tr class="border-b border-gray-50">
-                  <td class="py-2 pr-4">{{ optional($log->tanggal_pengajuan)->translatedFormat('d M Y') }}</td>
-                  <td class="py-2 pr-4 font-medium text-gray-900">{{ $log->santri->nama_lengkap ?? '-' }}</td>
-                  <td class="py-2 pr-4">
-                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $genderClass }}">{{ $genderLabel }}</span>
-                  </td>
-                  <td class="py-2 pr-4">{{ $log->jenis }}</td>
-                  <td class="py-2 pr-4">{{ $log->waktu_keluar ?: '-' }}</td>
-                  <td class="py-2 pr-4">{{ $log->waktu_masuk ?: '-' }}</td>
-                  <td class="py-2">{{ $log->catatan ?: '-' }}</td>
-                </tr>
-              @endforeach
-            </tbody>
-          </table>
-        </div>
-      @endif
-
-      @if($isPaginated && method_exists($logs, 'hasPages') && $logs->hasPages())
-        <div class="mt-4 border-t border-gray-100 pt-3">
-          {{ $logs->links() }}
-        </div>
-      @endif
+    <div id="log-table-panel">
+      @include('santri.pages.data.partials.log-table-panel', [
+        'logs' => $logs,
+        'logRows' => $logRows,
+        'isPaginated' => $isPaginated,
+        'isStaffViewer' => true,
+      ])
     </div>
   @else
     <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -185,39 +143,178 @@
         </div>
       </div>
     @else
-      @if($logRows->isEmpty())
-        <div class="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
-          Belum ada data log keluar/masuk.
-        </div>
-      @else
-        <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-gray-100 text-left text-gray-500">
-                  <th class="py-2 pr-4">Tanggal</th>
-                  <th class="py-2 pr-4">Tujuan</th>
-                  <th class="py-2 pr-4">Waktu Keluar</th>
-                  <th class="py-2 pr-4">Waktu Masuk</th>
-                  <th class="py-2">Catatan</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach($logRows as $log)
-                  <tr class="border-b border-gray-50">
-                    <td class="py-2 pr-4">{{ optional($log->tanggal_pengajuan)->translatedFormat('d M Y') }}</td>
-                    <td class="py-2 pr-4 font-medium text-gray-900">{{ $log->jenis }}</td>
-                    <td class="py-2 pr-4">{{ $log->waktu_keluar ?: '-' }}</td>
-                    <td class="py-2 pr-4">{{ $log->waktu_masuk ?: '-' }}</td>
-                    <td class="py-2">{{ $log->catatan ?: '-' }}</td>
-                  </tr>
-                @endforeach
-              </tbody>
-            </table>
-          </div>
-        </div>
-      @endif
+      <div id="log-table-panel">
+        @include('santri.pages.data.partials.log-table-panel', [
+          'logs' => $logs,
+          'logRows' => $logRows,
+          'isPaginated' => $isPaginated,
+          'isStaffViewer' => false,
+        ])
+      </div>
     @endif
   @endif
 </div>
+
+@once
+<script>
+  (function () {
+    const initLogAjax = () => {
+      const root = document.querySelector('[data-log-ajax-root]');
+      if (!root || root.dataset.ajaxBound === '1') {
+        return;
+      }
+      root.dataset.ajaxBound = '1';
+
+      const isStaff = root.dataset.logStaff === '1';
+      const mode = root.dataset.logMode || 'input';
+      if (!isStaff && mode !== 'mine') {
+        return;
+      }
+
+      const panel = root.querySelector('#log-table-panel');
+      if (!panel) {
+        return;
+      }
+
+      const filterForm = root.querySelector('#log-filter-form');
+      const searchInput = root.querySelector('#log-search-input');
+      const pageInput = root.querySelector('#log-page-input');
+      const genderInput = filterForm ? filterForm.querySelector('input[name=\"gender_filter\"]') : null;
+
+      let debounceTimer = null;
+      let currentController = null;
+
+      const fetchPanel = (url, pushState = true) => {
+        if (currentController) {
+          currentController.abort();
+        }
+        currentController = new AbortController();
+
+        const targetUrl = new URL(url, window.location.origin);
+        targetUrl.searchParams.set('ajax', '1');
+
+        panel.classList.add('opacity-60');
+
+        fetch(targetUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+          signal: currentController.signal,
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error('Gagal memuat data log.');
+            }
+            return response.json();
+          })
+          .then((payload) => {
+            if (!payload || typeof payload.html !== 'string') {
+              throw new Error('Respons AJAX tidak valid.');
+            }
+
+            panel.innerHTML = payload.html;
+
+            if (pushState) {
+              targetUrl.searchParams.delete('ajax');
+              window.history.replaceState({}, '', targetUrl.toString());
+            }
+
+            if (typeof window.refreshLucideIcons === 'function') {
+              window.refreshLucideIcons();
+            }
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              window.location.href = url;
+            }
+          })
+          .finally(() => {
+            panel.classList.remove('opacity-60');
+          });
+      };
+
+      const submitFilterForm = (page = 1) => {
+        if (!filterForm) {
+          return;
+        }
+
+        if (pageInput) {
+          pageInput.value = String(page);
+        }
+
+        const params = new URLSearchParams(new FormData(filterForm));
+        const url = `${filterForm.action}?${params.toString()}`;
+        fetchPanel(url);
+      };
+
+      const setActiveGenderChip = (value) => {
+        root.querySelectorAll('[data-log-filter-link]').forEach((chip) => {
+          const chipUrl = new URL(chip.href, window.location.origin);
+          const chipGender = chipUrl.searchParams.get('gender_filter') || 'all';
+          const isActive = chipGender === value;
+
+          chip.classList.toggle('bg-emerald-600', isActive);
+          chip.classList.toggle('text-white', isActive);
+          chip.classList.toggle('bg-gray-100', !isActive);
+          chip.classList.toggle('text-gray-700', !isActive);
+          chip.classList.toggle('hover:bg-gray-200', !isActive);
+        });
+      };
+
+      if (filterForm) {
+        filterForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          submitFilterForm(1);
+        });
+      }
+
+      if (searchInput && filterForm) {
+        searchInput.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => submitFilterForm(1), 120);
+        });
+      }
+
+      root.addEventListener('click', (event) => {
+        const genderLink = event.target.closest('[data-log-filter-link]');
+        if (genderLink) {
+          event.preventDefault();
+          const genderUrl = new URL(genderLink.href, window.location.origin);
+          const selectedGender = genderUrl.searchParams.get('gender_filter') || 'all';
+          if (genderInput) {
+            genderInput.value = selectedGender;
+          }
+          if (pageInput) {
+            pageInput.value = '1';
+          }
+          setActiveGenderChip(selectedGender);
+          fetchPanel(genderLink.href);
+          return;
+        }
+
+        const paginationLink = event.target.closest('[data-log-pagination] a[href]');
+        if (!paginationLink) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (filterForm) {
+          const linkUrl = new URL(paginationLink.href, window.location.origin);
+          const nextPage = linkUrl.searchParams.get('page');
+          submitFilterForm(nextPage ? Number(nextPage) : 1);
+          return;
+        }
+
+        fetchPanel(paginationLink.href);
+      });
+    };
+
+    document.addEventListener('DOMContentLoaded', initLogAjax);
+    document.addEventListener('livewire:navigated', initLogAjax);
+  })();
+</script>
+@endonce
 @endsection

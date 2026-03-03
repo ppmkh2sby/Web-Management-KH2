@@ -38,7 +38,7 @@
         <div class="text-sm text-gray-700">Kelompok:</div>
         <div class="flex gap-2">
           @foreach(['putra'=>'Putra','putri'=>'Putri'] as $val => $label)
-            <a href="{{ route('santri.presensi.index', ['mode' => 'input', 'gender' => $val]) }}"
+            <a href="{{ route('santri.presensi.index', ['mode' => 'input', 'gender' => $val]) }}" wire:navigate
                class="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs {{ $gender === $val ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 text-gray-700 hover:border-emerald-300' }}">
               {{ $label }}
             </a>
@@ -126,7 +126,7 @@
           <p class="text-[10px] text-gray-600 mt-0.5">Lorem ipsum dolor sit amet, consectetur. Volutpat tellus facilisi nulla commodo non libero quis.</p>
           <div class="mt-2 inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
             @foreach(['all' => 'Semua', 'putra' => 'Putra', 'putri' => 'Putri'] as $genderKey => $genderLabel)
-              <a href="{{ route('santri.presensi.index', array_merge($genderSwitchQuery, ['mode' => 'team', 'gender_filter' => $genderKey])) }}"
+              <a href="{{ route('santri.presensi.index', array_merge($genderSwitchQuery, ['mode' => 'team', 'gender_filter' => $genderKey])) }}" wire:navigate
                  class="inline-flex min-w-[66px] items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold transition {{ ($genderFilter ?? 'all') === $genderKey ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-700 hover:bg-white' }}">
                 {{ $genderLabel }}
               </a>
@@ -157,7 +157,7 @@
           </button>
           @endif
           @if(($canInput ?? false))
-            <a href="{{ route('santri.presensi.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
+            <a href="{{ route('santri.presensi.create') }}" wire:navigate class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
               <i data-lucide="plus" class="w-4 h-4"></i>
               Input Kehadiran
             </a>
@@ -1245,3 +1245,4 @@
 @endif
 
 @endsection
+

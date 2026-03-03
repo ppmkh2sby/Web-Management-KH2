@@ -49,7 +49,7 @@
             </form>
           </div>
           @if($canManage)
-            <a href="{{ route('santri.kafarah.create') }}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
+            <a href="{{ route('santri.kafarah.create') }}" wire:navigate class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm">
               <i data-lucide="plus" class="w-4 h-4"></i>
               Input Kafarah
             </a>
@@ -450,3 +450,4 @@
 @endif
 
 @endsection
+

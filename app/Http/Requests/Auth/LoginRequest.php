@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Auth\Events\Lockout;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -65,8 +66,15 @@ class LoginRequest extends FormRequest
 
         $identifierColumns = $this->resolveIdentifierColumns();
         foreach ($identifierColumns as $column) {
-            if (Auth::attempt([$column => $identifier, 'password' => $password], $remember)) {
-                return true;
+            try {
+                if (Auth::attempt([$column => $identifier, 'password' => $password], $remember)) {
+                    return true;
+                }
+            } catch (QueryException $exception) {
+                // Fallback for older DB schema that may not yet have login_code column.
+                if (! $this->isMissingIdentifierColumn($exception, $column)) {
+                    throw $exception;
+                }
             }
         }
 
@@ -79,6 +87,15 @@ class LoginRequest extends FormRequest
     private function resolveIdentifierColumns(): array
     {
         return self::IDENTIFIER_COLUMNS;
+    }
+
+    private function isMissingIdentifierColumn(QueryException $exception, string $column): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? '');
+        $message = strtolower($exception->getMessage());
+        $needle = strtolower($column);
+
+        return $sqlState === '42703' || str_contains($message, "column \"{$needle}\" does not exist");
     }
 
     /**

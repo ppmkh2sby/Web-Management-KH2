@@ -48,7 +48,6 @@ class InitialSetupSeeder extends Seeder
                 'expires_at' => null,
                 'updated_at' => now(),
                 'created_at' => now(),
-
             ]
         );
     }

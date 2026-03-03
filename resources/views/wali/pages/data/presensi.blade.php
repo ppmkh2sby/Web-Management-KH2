@@ -30,7 +30,7 @@
                 <p class="text-sm text-gray-500">30 catatan kehadiran terakhir.</p>
             </div>
             <div class="flex flex-wrap gap-2 text-sm">
-                <a href="{{ route('wali.anak.overview', $santri->code) }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-gray-600 hover:text-gray-800">
+                <a href="{{ route('wali.anak.overview', $santri->code) }}" wire:navigate class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-gray-600 hover:text-gray-800">
                     <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali
                 </a>
                 <button class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">
@@ -141,3 +141,4 @@
     </div>
 </div>
 @endsection
+

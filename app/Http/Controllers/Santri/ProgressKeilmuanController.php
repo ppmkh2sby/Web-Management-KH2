@@ -7,16 +7,23 @@ use App\Http\Controllers\Controller;
 use App\Models\ProgressKeilmuan;
 use App\Models\Santri;
 use App\Models\User as UserModel;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ProgressKeilmuanController extends Controller
 {
     private const CATEGORY_QURAN = 'al-quran';
     private const CATEGORY_HADITS = 'al-hadits';
+    private const PROGRESS_PERCENT_SQL = "CASE WHEN target > 0 THEN CASE WHEN ROUND((capaian * 100.0) / target) > 100 THEN 100 ELSE ROUND((capaian * 100.0) / target) END ELSE 0 END";
+
+    private function wantsAjax(Request $request): bool
+    {
+        return $request->ajax() || $request->expectsJson() || $request->boolean('ajax');
+    }
 
     public function index(Request $request): View|RedirectResponse
     {
@@ -196,7 +203,7 @@ class ProgressKeilmuanController extends Controller
         ]);
     }
 
-    private function staffIndex(Request $request): View
+    private function staffIndex(Request $request): View|JsonResponse
     {
         $category = $this->resolveCategory((string) $request->input('category'));
         $genderFilter = strtolower(trim((string) $request->input('gender', 'all')));
@@ -206,133 +213,112 @@ class ProgressKeilmuanController extends Controller
         $modules = collect($this->modules($category));
         $moduleCount = $modules->count();
 
-        $santriList = Santri::query()
-            ->with('kelas')
-            ->orderBy('nama_lengkap')
-            ->get(['id', 'nama_lengkap', 'code', 'tim', 'gender', 'kelas_id']);
-
-        $progressBySantri = ProgressKeilmuan::query()
+        $progressAggregate = ProgressKeilmuan::query()
             ->where('level', $category)
-            ->whereIn('santri_id', $santriList->pluck('id'))
-            ->latest('updated_at')
-            ->get()
+            ->select('santri_id')
+            ->selectRaw("SUM(CASE WHEN " . self::PROGRESS_PERCENT_SQL . " >= 100 THEN 1 ELSE 0 END) as completed")
+            ->selectRaw("SUM(CASE WHEN " . self::PROGRESS_PERCENT_SQL . " > 0 AND " . self::PROGRESS_PERCENT_SQL . " < 100 THEN 1 ELSE 0 END) as in_progress")
+            ->selectRaw("ROUND(COALESCE(AVG(" . self::PROGRESS_PERCENT_SQL . "), 0)) as average")
+            ->selectRaw('MAX(COALESCE(terakhir_setor, updated_at)) as updated_at')
             ->groupBy('santri_id');
 
-        $normalize = static fn (?string $value): string => strtolower(
-            trim((string) preg_replace('/\s+/', ' ', (string) $value))
-        );
-
-        $rows = $santriList->map(function (Santri $santri) use ($progressBySantri, $modules, $moduleCount, $category, $normalize) {
-            $records = collect($progressBySantri->get($santri->id, collect()));
-
-            $recordMap = [];
-            foreach ($records as $record) {
-                $titleRaw = (string) ($record->judul ?? '');
-                $titleKey = $normalize($titleRaw);
-                if ($titleKey !== '' && ! array_key_exists($titleKey, $recordMap)) {
-                    $recordMap[$titleKey] = $record;
-                }
-
-                if ($category === self::CATEGORY_QURAN && preg_match('/juz\s*([0-9]{1,2})/i', $titleRaw, $match)) {
-                    $juzNumber = (int) ($match[1] ?? 0);
-                    if ($juzNumber >= 1 && $juzNumber <= 30) {
-                        $recordMap[$normalize('Juz ' . $juzNumber)] = $record;
-                    }
-                }
-            }
-
-            $completed = 0;
-            $inProgress = 0;
-            $sumPercent = 0;
-
-            foreach ($modules as $module) {
-                $title = (string) ($module['judul'] ?? '');
-                $defaultTarget = (int) ($module['target'] ?? 0);
-                $record = $recordMap[$normalize($title)] ?? null;
-                $target = (int) ($record->target ?? $defaultTarget);
-                $capaian = max((int) ($record->capaian ?? 0), 0);
-                $percent = $target > 0 ? (int) min(100, round(($capaian / $target) * 100)) : 0;
-
-                $sumPercent += $percent;
-                if ($percent >= 100) {
-                    $completed++;
-                } elseif ($percent > 0) {
-                    $inProgress++;
-                }
-            }
-
-            $latestUpdate = $records
-                ->map(fn ($item) => $item->terakhir_setor ?? $item->updated_at)
-                ->filter()
-                ->max();
-
-            $teamName = trim((string) ($santri->tim_resolved ?? $santri->tim ?? ''));
-
-            return [
-                'id' => $santri->id,
-                'code' => $santri->code,
-                'nama' => $santri->nama_lengkap ?? '-',
-                'gender' => $this->normalizeGender((string) ($santri->gender ?? '')),
-                'kelas' => $santri->kelas?->nama ?? '-',
-                'tim' => $teamName !== '' ? $teamName : '-',
-                'tim_badge' => UserModel::teamAbbreviation($teamName),
-                'completed' => $completed,
-                'in_progress' => $inProgress,
-                'average' => $moduleCount > 0 ? (int) round($sumPercent / $moduleCount) : 0,
-                'updated_at' => $latestUpdate,
-            ];
-        })->values();
-
         $searchQuery = trim((string) $request->input('q', ''));
-        $filteredRows = $rows;
-        if ($genderFilter !== 'all') {
-            $filteredRows = $filteredRows
-                ->filter(fn (array $row) => ($row['gender'] ?? '') === $genderFilter)
-                ->values();
-        }
+        $driver = DB::connection()->getDriverName();
+        $like = $driver === 'pgsql' ? 'ilike' : 'like';
 
-        if ($searchQuery !== '') {
-            $needle = strtolower($searchQuery);
-            $filteredRows = $filteredRows->filter(function (array $row) use ($needle) {
-                $haystack = strtolower(implode(' ', [
-                    (string) ($row['nama'] ?? ''),
-                    (string) ($row['kelas'] ?? ''),
-                    (string) ($row['tim'] ?? ''),
-                    (string) ($row['code'] ?? ''),
-                ]));
+        $applyFilters = function ($query) use ($genderFilter, $searchQuery, $like) {
+            if ($genderFilter !== 'all') {
+                $query->where('santris.gender', $genderFilter);
+            }
 
-                return str_contains($haystack, $needle);
-            })->values();
-        }
+            if ($searchQuery !== '') {
+                $query->where(function ($q) use ($searchQuery, $like) {
+                    $q->where('santris.nama_lengkap', $like, "%{$searchQuery}%")
+                        ->orWhere('santris.code', $like, "%{$searchQuery}%")
+                        ->orWhere('santris.tim', $like, "%{$searchQuery}%")
+                        ->orWhere('kelas.nama', $like, "%{$searchQuery}%");
+                });
+            }
+        };
+
+        $statsQuery = Santri::query()
+            ->leftJoinSub($progressAggregate, 'progress_agg', fn ($join) => $join->on('progress_agg.santri_id', '=', 'santris.id'))
+            ->leftJoin('kelas', 'kelas.id', '=', 'santris.kelas_id');
+
+        $applyFilters($statsQuery);
+
+        $statsRow = $statsQuery
+            ->selectRaw('COUNT(*) as total_santri')
+            ->selectRaw('SUM(CASE WHEN (COALESCE(progress_agg.completed, 0) + COALESCE(progress_agg.in_progress, 0)) > 0 THEN 1 ELSE 0 END) as active_santri')
+            ->selectRaw('ROUND(COALESCE(AVG(COALESCE(progress_agg.average, 0)), 0)) as average')
+            ->selectRaw('SUM(COALESCE(progress_agg.completed, 0)) as completed_modules')
+            ->first();
+
+        $rowsQuery = Santri::query()
+            ->leftJoinSub($progressAggregate, 'progress_agg', fn ($join) => $join->on('progress_agg.santri_id', '=', 'santris.id'))
+            ->leftJoin('kelas', 'kelas.id', '=', 'santris.kelas_id');
+
+        $applyFilters($rowsQuery);
+
+        $rowsPage = $rowsQuery
+            ->select('santris.id', 'santris.code')
+            ->selectRaw("COALESCE(santris.nama_lengkap, '-') as nama")
+            ->selectRaw("COALESCE(kelas.nama, '-') as kelas")
+            ->selectRaw("COALESCE(santris.tim, '') as tim")
+            ->selectRaw("COALESCE(santris.gender, '') as gender_raw")
+            ->selectRaw('COALESCE(progress_agg.completed, 0) as completed')
+            ->selectRaw('COALESCE(progress_agg.in_progress, 0) as in_progress')
+            ->selectRaw('COALESCE(progress_agg.average, 0) as average')
+            ->selectRaw('progress_agg.updated_at as updated_at')
+            ->orderByDesc('average')
+            ->orderBy('santris.nama_lengkap')
+            ->paginate(8)
+            ->withQueryString()
+            ->through(function ($row): array {
+                $code = (string) ($row->code ?? '');
+                $teamName = trim((string) ($row->tim ?? ''));
+                if ($teamName === '' && $code !== '') {
+                    $teamName = (string) (Santri::teamFromCode($code) ?? '');
+                }
+
+                return [
+                    'id' => (int) ($row->id ?? 0),
+                    'code' => $code,
+                    'nama' => (string) ($row->nama ?? '-'),
+                    'gender' => $this->normalizeGender((string) ($row->gender_raw ?? '')),
+                    'kelas' => (string) ($row->kelas ?? '-'),
+                    'tim' => $teamName !== '' ? $teamName : '-',
+                    'tim_badge' => UserModel::teamAbbreviation($teamName),
+                    'completed' => (int) ($row->completed ?? 0),
+                    'in_progress' => (int) ($row->in_progress ?? 0),
+                    'average' => (int) ($row->average ?? 0),
+                    'updated_at' => $row->updated_at,
+                ];
+            });
 
         $stats = [
-            'totalSantri' => $filteredRows->count(),
-            'activeSantri' => $filteredRows->filter(fn ($row) => (($row['completed'] ?? 0) + ($row['in_progress'] ?? 0)) > 0)->count(),
-            'average' => $filteredRows->isNotEmpty() ? (int) round($filteredRows->avg('average')) : 0,
-            'completedModules' => (int) $filteredRows->sum('completed'),
+            'totalSantri' => (int) ($statsRow?->total_santri ?? 0),
+            'activeSantri' => (int) ($statsRow?->active_santri ?? 0),
+            'average' => (int) ($statsRow?->average ?? 0),
+            'completedModules' => (int) ($statsRow?->completed_modules ?? 0),
             'moduleCount' => $moduleCount,
         ];
 
-        $perPage = 5;
-        $page = max((int) $request->input('page', 1), 1);
-        $rowsPage = new LengthAwarePaginator(
-            $filteredRows->forPage($page, $perPage)->values(),
-            $filteredRows->count(),
-            $perPage,
-            $page,
-            [
-                'path' => $request->url(),
-                'query' => $request->query(),
-            ]
-        );
-
-        return view('santri.pages.data.progres-staff', [
+        $viewData = [
             'category' => $category,
             'rows' => $rowsPage,
             'stats' => $stats,
             'searchQuery' => $searchQuery,
             'genderFilter' => $genderFilter,
-        ]);
+        ];
+
+        if ($this->wantsAjax($request)) {
+            return response()->json([
+                'html' => view('santri.pages.data.partials.progres-staff-table-panel', $viewData)->render(),
+            ]);
+        }
+
+        return view('santri.pages.data.progres-staff', $viewData);
     }
 
     private function normalizeGender(string $value): string

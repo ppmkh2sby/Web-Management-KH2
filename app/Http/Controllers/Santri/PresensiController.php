@@ -12,12 +12,16 @@ use App\Models\Santri;
 use App\Models\Sesi;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PresensiController extends Controller
 {
+    private const REKAP_PER_PAGE = 25;
+
     private function ensureAllowedRole(): void
     {
         abort_unless(auth()->check(), 403);
@@ -66,6 +70,11 @@ class PresensiController extends Controller
         }
 
         return $user->role === Role::DEWAN_GURU && ! empty($this->degurKelasIds());
+    }
+
+    private function wantsAjax(Request $request): bool
+    {
+        return $request->ajax() || $request->expectsJson() || $request->boolean('ajax');
     }
 
     /**
@@ -390,7 +399,7 @@ class PresensiController extends Controller
         ]);
     }
 
-    public function rekap(): View
+    public function rekap(Request $request): View|JsonResponse
     {
         $this->ensureAllowedRole();
         $this->authorize('viewAny', Presensi::class);
@@ -398,7 +407,7 @@ class PresensiController extends Controller
         $user = auth()->user();
         abort_unless($user && $user->isKetertiban(), 403, 'Fitur rekap presensi khusus tim KTB.');
 
-        $bulanInput = trim((string) request()->query('bulan', now()->format('Y-m')));
+        $bulanInput = trim((string) $request->query('bulan', now()->format('Y-m')));
         if (!preg_match('/^\d{4}\-(0[1-9]|1[0-2])$/', $bulanInput)) {
             $bulanInput = now()->format('Y-m');
         }
@@ -407,27 +416,34 @@ class PresensiController extends Controller
         $monthStart = Carbon::createFromDate($tahun, $bulan, 1)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $kategori = strtolower(trim((string) request()->query('kategori', 'all')));
+        $kategori = strtolower(trim((string) $request->query('kategori', 'all')));
         if ($kategori !== 'all' && !in_array($kategori, Kegiatan::KATEGORI, true)) {
             $kategori = 'all';
         }
 
-        $waktu = strtolower(trim((string) request()->query('waktu', 'all')));
+        $waktu = strtolower(trim((string) $request->query('waktu', 'all')));
         if ($waktu !== 'all' && !in_array($waktu, Presensi::WAKTU, true)) {
             $waktu = 'all';
         }
 
+        $activeTab = strtolower(trim((string) $request->query('tab', 'putra')));
+        if (!in_array($activeTab, ['putra', 'putri'], true)) {
+            $activeTab = 'putra';
+        }
+
         $recordsQuery = Presensi::query()
-            ->with(['santri:id,nama_lengkap,tim,code,gender'])
-            ->whereHas('santri', fn ($q) => $q->whereIn('gender', ['putra', 'putri']))
+            ->join('santris', 'santris.id', '=', 'presensis.santri_id')
+            ->leftJoin('kegiatans', 'kegiatans.id', '=', 'presensis.kegiatan_id')
+            ->leftJoin('sesi', 'sesi.id', '=', 'presensis.sesi_id')
+            ->whereIn('santris.gender', ['putra', 'putri'])
             ->where(function ($q) use ($monthStart, $monthEnd) {
-                $q->whereHas('sesi', fn ($sq) => $sq->whereBetween('tanggal', [
+                $q->whereBetween('sesi.tanggal', [
                     $monthStart->toDateString(),
                     $monthEnd->toDateString(),
-                ]))
+                ])
                 ->orWhere(function ($legacy) use ($monthStart, $monthEnd) {
-                    $legacy->whereNull('sesi_id')
-                        ->whereBetween('created_at', [
+                    $legacy->whereNull('presensis.sesi_id')
+                        ->whereBetween('presensis.created_at', [
                             $monthStart->copy()->startOfDay(),
                             $monthEnd->copy()->endOfDay(),
                         ]);
@@ -435,106 +451,103 @@ class PresensiController extends Controller
             });
 
         if ($kategori !== 'all') {
-            $recordsQuery->whereHas('kegiatan', fn ($q) => $q->where('kategori', $kategori));
+            $recordsQuery->where('kegiatans.kategori', $kategori);
         }
 
         if ($waktu !== 'all') {
             $recordsQuery->where(function ($q) use ($waktu) {
-                $q->where('waktu', $waktu)
-                    ->orWhereHas('kegiatan', fn ($kq) => $kq->where('waktu', $waktu));
+                $q->where('presensis.waktu', $waktu)
+                    ->orWhere('kegiatans.waktu', $waktu);
             });
         }
 
-        $records = $recordsQuery->get(['id', 'santri_id', 'status', 'sesi_id', 'waktu', 'created_at']);
+        $buildSummary = function (string $gender) use ($recordsQuery): array {
+            $summary = (clone $recordsQuery)
+                ->where('santris.gender', $gender)
+                ->selectRaw('COUNT(*) as total_input')
+                ->selectRaw('COUNT(DISTINCT presensis.santri_id) as total_santri')
+                ->selectRaw('COUNT(DISTINCT presensis.sesi_id) as total_sesi')
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'hadir' THEN 1 ELSE 0 END) as hadir")
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'izin' THEN 1 ELSE 0 END) as izin")
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'sakit' THEN 1 ELSE 0 END) as sakit")
+                ->selectRaw("SUM(CASE WHEN presensis.status = 'alpha' THEN 1 ELSE 0 END) as alpha")
+                ->first();
 
-        $buildGenderRekap = function (string $gender) use ($records): array {
-            $statusTemplate = [
-                'hadir' => 0,
-                'izin' => 0,
-                'sakit' => 0,
-                'alpha' => 0,
-            ];
-
-            $genderRecords = $records->filter(function (Presensi $record) use ($gender): bool {
-                return (string) ($record->santri?->gender ?? '') === $gender;
-            });
-
-            $statusCounts = $statusTemplate;
-            foreach ($genderRecords as $record) {
-                $status = strtolower((string) $record->status);
-                if (array_key_exists($status, $statusCounts)) {
-                    $statusCounts[$status]++;
-                }
-            }
-
-            $perSantri = $genderRecords
-                ->groupBy('santri_id')
-                ->map(function ($rows) use ($statusTemplate): array {
-                    /** @var Presensi $sample */
-                    $sample = $rows->first();
-                    $santri = $sample?->santri;
-
-                    $counts = $statusTemplate;
-                    foreach ($rows as $row) {
-                        $status = strtolower((string) $row->status);
-                        if (array_key_exists($status, $counts)) {
-                            $counts[$status]++;
-                        }
-                    }
-
-                    $total = $rows->count();
-
-                    return [
-                        'santri_id' => $santri?->id,
-                        'nama_lengkap' => $santri?->nama_lengkap ?? '-',
-                        'tim' => $santri?->tim_resolved ?? $santri?->tim ?? '-',
-                        'total_input' => $total,
-                        'hadir' => $counts['hadir'],
-                        'izin' => $counts['izin'],
-                        'sakit' => $counts['sakit'],
-                        'alpha' => $counts['alpha'],
-                        'persentase' => $total > 0 ? round(($counts['hadir'] / $total) * 100) : 0,
-                    ];
-                })
-                ->sort(function (array $a, array $b): int {
-                    if ($a['persentase'] === $b['persentase']) {
-                        return $b['hadir'] <=> $a['hadir'];
-                    }
-                    return $b['persentase'] <=> $a['persentase'];
-                })
-                ->values();
-
-            $totalInput = $genderRecords->count();
+            $totalInput = (int) ($summary?->total_input ?? 0);
+            $hadir = (int) ($summary?->hadir ?? 0);
 
             return [
-                'summary' => [
-                    'total_santri' => $perSantri->count(),
-                    'total_sesi' => $genderRecords->pluck('sesi_id')->filter()->unique()->count(),
-                    'total_input' => $totalInput,
-                    'hadir' => $statusCounts['hadir'],
-                    'izin' => $statusCounts['izin'],
-                    'sakit' => $statusCounts['sakit'],
-                    'alpha' => $statusCounts['alpha'],
-                    'persentase' => $totalInput > 0 ? round(($statusCounts['hadir'] / $totalInput) * 100) : 0,
-                ],
-                'rows' => $perSantri,
+                'total_santri' => (int) ($summary?->total_santri ?? 0),
+                'total_sesi' => (int) ($summary?->total_sesi ?? 0),
+                'total_input' => $totalInput,
+                'hadir' => $hadir,
+                'izin' => (int) ($summary?->izin ?? 0),
+                'sakit' => (int) ($summary?->sakit ?? 0),
+                'alpha' => (int) ($summary?->alpha ?? 0),
+                'persentase' => $totalInput > 0 ? (int) round(($hadir / $totalInput) * 100) : 0,
             ];
         };
 
-        $putra = $buildGenderRekap('putra');
-        $putri = $buildGenderRekap('putri');
+        $putraSummary = $buildSummary('putra');
+        $putriSummary = $buildSummary('putri');
 
-        return view('santri.presensi.rekap', [
+        $activeRows = (clone $recordsQuery)
+            ->where('santris.gender', $activeTab)
+            ->selectRaw('presensis.santri_id as santri_id')
+            ->selectRaw('santris.nama_lengkap as nama_lengkap')
+            ->selectRaw('santris.tim as tim')
+            ->selectRaw('santris.code as code')
+            ->selectRaw('COUNT(*) as total_input')
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'hadir' THEN 1 ELSE 0 END) as hadir")
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'izin' THEN 1 ELSE 0 END) as izin")
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'sakit' THEN 1 ELSE 0 END) as sakit")
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'alpha' THEN 1 ELSE 0 END) as alpha")
+            ->groupBy('presensis.santri_id', 'santris.nama_lengkap', 'santris.tim', 'santris.code')
+            ->orderByRaw("CASE WHEN COUNT(*) > 0 THEN ROUND((SUM(CASE WHEN presensis.status = 'hadir' THEN 1 ELSE 0 END) * 100.0) / COUNT(*)) ELSE 0 END DESC")
+            ->orderByDesc('hadir')
+            ->simplePaginate(self::REKAP_PER_PAGE)
+            ->withQueryString()
+            ->through(function ($row): array {
+                $totalInput = (int) ($row->total_input ?? 0);
+                $hadir = (int) ($row->hadir ?? 0);
+                $code = (string) ($row->code ?? '');
+                $tim = trim((string) ($row->tim ?? ''));
+                if ($tim === '' && $code !== '') {
+                    $tim = (string) (Santri::teamFromCode($code) ?? '');
+                }
+
+                return [
+                    'santri_id' => (int) ($row->santri_id ?? 0),
+                    'nama_lengkap' => (string) ($row->nama_lengkap ?? '-'),
+                    'tim' => $tim !== '' ? $tim : '-',
+                    'total_input' => $totalInput,
+                    'hadir' => $hadir,
+                    'izin' => (int) ($row->izin ?? 0),
+                    'sakit' => (int) ($row->sakit ?? 0),
+                    'alpha' => (int) ($row->alpha ?? 0),
+                    'persentase' => $totalInput > 0 ? (int) round(($hadir / $totalInput) * 100) : 0,
+                ];
+            });
+
+        $viewData = [
             'bulanInput' => $bulanInput,
+            'activeTab' => $activeTab,
             'selectedKategori' => $kategori,
             'selectedWaktu' => $waktu,
             'kategoriOptions' => Kegiatan::KATEGORI,
             'waktuOptions' => Presensi::WAKTU,
-            'putraSummary' => $putra['summary'],
-            'putriSummary' => $putri['summary'],
-            'putraRows' => $putra['rows'],
-            'putriRows' => $putri['rows'],
-        ]);
+            'putraSummary' => $putraSummary,
+            'putriSummary' => $putriSummary,
+            'activeRows' => $activeRows,
+        ];
+
+        if ($this->wantsAjax($request)) {
+            return response()->json([
+                'html' => view('santri.presensi.partials.rekap-layout', $viewData)->render(),
+            ]);
+        }
+
+        return view('santri.presensi.rekap', $viewData);
     }
 
     public function create(): View

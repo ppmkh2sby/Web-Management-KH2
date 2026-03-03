@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Santri;
 use App\Enum\Role;
 use App\Http\Controllers\Controller;
 use App\Models\LogKeluarMasuk;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class LogKeluarMasukController extends Controller
 {
+    private const PER_PAGE = 12;
+
     private function ensureAllowedRole(): void
     {
         abort_unless(auth()->check(), 403);
@@ -43,7 +49,44 @@ class LogKeluarMasukController extends Controller
         return $log;
     }
 
-    public function index(Request $request): View|RedirectResponse
+    private function wantsAjax(Request $request): bool
+    {
+        return $request->ajax() || $request->expectsJson() || $request->boolean('ajax');
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, LogKeluarMasuk>|LengthAwarePaginator|Paginator  $logs
+     * @return array{isPaginated: bool, logRows: Collection<int, LogKeluarMasuk>}
+     */
+    private function resolveLogPanelData(Collection|LengthAwarePaginator|Paginator $logs): array
+    {
+        $isPaginated = $logs instanceof LengthAwarePaginator || $logs instanceof Paginator;
+        $logRows = $isPaginated ? collect($logs->items()) : collect($logs);
+
+        return [
+            'isPaginated' => $isPaginated,
+            'logRows' => $logRows,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, LogKeluarMasuk>|LengthAwarePaginator|Paginator  $logs
+     */
+    private function ajaxLogPanelResponse(Collection|LengthAwarePaginator|Paginator $logs, bool $isStaffViewer): JsonResponse
+    {
+        $panelData = $this->resolveLogPanelData($logs);
+
+        return response()->json([
+            'html' => view('santri.pages.data.partials.log-table-panel', [
+                'logs' => $logs,
+                'logRows' => $panelData['logRows'],
+                'isPaginated' => $panelData['isPaginated'],
+                'isStaffViewer' => $isStaffViewer,
+            ])->render(),
+        ]);
+    }
+
+    public function index(Request $request): View|RedirectResponse|JsonResponse
     {
         $this->ensureAllowedRole();
         $this->authorize('viewAny', LogKeluarMasuk::class);
@@ -94,9 +137,13 @@ class LogKeluarMasukController extends Controller
             }
 
             $logs = $query
-                ->paginate(12)
+                ->simplePaginate(self::PER_PAGE)
                 ->withQueryString()
                 ->through(fn (LogKeluarMasuk $log) => $this->attachWaktuFields($log));
+
+            if ($this->wantsAjax($request)) {
+                return $this->ajaxLogPanelResponse($logs, true);
+            }
 
             return view('santri.pages.data.log', [
                 'santri' => null,
@@ -117,11 +164,25 @@ class LogKeluarMasukController extends Controller
             $mode = 'input';
         }
 
-        $logs = LogKeluarMasuk::where('santri_id', $santri->id)
+        $logQuery = LogKeluarMasuk::where('santri_id', $santri->id)
             ->latest('tanggal_pengajuan')
-            ->latest('id')
-            ->get()
-            ->map(fn (LogKeluarMasuk $log) => $this->attachWaktuFields($log));
+            ->latest('id');
+
+        if ($mode === 'mine') {
+            $logs = $logQuery
+                ->simplePaginate(self::PER_PAGE)
+                ->withQueryString()
+                ->through(fn (LogKeluarMasuk $log) => $this->attachWaktuFields($log));
+
+            if ($this->wantsAjax($request)) {
+                return $this->ajaxLogPanelResponse($logs, false);
+            }
+        } else {
+            $logs = $logQuery
+                ->take(5)
+                ->get()
+                ->map(fn (LogKeluarMasuk $log) => $this->attachWaktuFields($log));
+        }
 
         return view('santri.pages.data.log', [
             'santri' => $santri,
