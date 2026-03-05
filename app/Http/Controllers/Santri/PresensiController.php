@@ -177,7 +177,25 @@ class PresensiController extends Controller
             $gender = 'putra';
         }
 
-        $query = Presensi::with(['santri', 'kegiatan', 'sesi'])->latest('updated_at');
+        $query = Presensi::query()
+            ->select([
+                'id',
+                'santri_id',
+                'kegiatan_id',
+                'sesi_id',
+                'nama',
+                'status',
+                'waktu',
+                'catatan',
+                'created_at',
+                'updated_at',
+            ])
+            ->with([
+                'santri:id,nama_lengkap,tim,code',
+                'kegiatan:id,kategori,waktu',
+                'sesi:id,tanggal',
+            ])
+            ->latest('updated_at');
 
         if ($isKetertiban && $mode === 'input') {
             $query->whereHas('santri', function ($q) use ($gender) {
@@ -300,9 +318,11 @@ class PresensiController extends Controller
 
         // Different pagination per mode
         $perPage = $mode === 'mine' ? 6 : 10;
-        $presensis = $query->paginate($perPage)->withQueryString();
+        $presensis = $mode === 'team'
+            ? $query->simplePaginate($perPage)->withQueryString()
+            : $query->paginate($perPage)->withQueryString();
         $santriList = collect();
-        if ($isKetertiban) {
+        if ($isKetertiban && $mode === 'input') {
             $santriList = Santri::where('gender', $gender)
                 ->orderBy('nama_lengkap')
                 ->get(['id', 'nama_lengkap', 'tim']);
@@ -415,6 +435,10 @@ class PresensiController extends Controller
         [$tahun, $bulan] = array_map('intval', explode('-', $bulanInput));
         $monthStart = Carbon::createFromDate($tahun, $bulan, 1)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
+        $monthStartDate = $monthStart->toDateString();
+        $monthEndDate = $monthEnd->toDateString();
+        $legacyStart = $monthStart->copy()->startOfDay();
+        $legacyEnd = $monthEnd->copy()->endOfDay();
 
         $kategori = strtolower(trim((string) $request->query('kategori', 'all')));
         if ($kategori !== 'all' && !in_array($kategori, Kegiatan::KATEGORI, true)) {
@@ -431,24 +455,24 @@ class PresensiController extends Controller
             $activeTab = 'putra';
         }
 
+        $monthlyPresensiIds = Presensi::query()
+            ->select('presensis.id')
+            ->join('sesi', 'sesi.id', '=', 'presensis.sesi_id')
+            ->whereBetween('sesi.tanggal', [$monthStartDate, $monthEndDate])
+            ->unionAll(
+                Presensi::query()
+                    ->select('presensis.id')
+                    ->whereNull('presensis.sesi_id')
+                    ->whereBetween('presensis.created_at', [$legacyStart, $legacyEnd])
+            );
+
         $recordsQuery = Presensi::query()
+            ->joinSub($monthlyPresensiIds, 'monthly_presensis', function ($join) {
+                $join->on('monthly_presensis.id', '=', 'presensis.id');
+            })
             ->join('santris', 'santris.id', '=', 'presensis.santri_id')
             ->leftJoin('kegiatans', 'kegiatans.id', '=', 'presensis.kegiatan_id')
-            ->leftJoin('sesi', 'sesi.id', '=', 'presensis.sesi_id')
-            ->whereIn('santris.gender', ['putra', 'putri'])
-            ->where(function ($q) use ($monthStart, $monthEnd) {
-                $q->whereBetween('sesi.tanggal', [
-                    $monthStart->toDateString(),
-                    $monthEnd->toDateString(),
-                ])
-                ->orWhere(function ($legacy) use ($monthStart, $monthEnd) {
-                    $legacy->whereNull('presensis.sesi_id')
-                        ->whereBetween('presensis.created_at', [
-                            $monthStart->copy()->startOfDay(),
-                            $monthEnd->copy()->endOfDay(),
-                        ]);
-                });
-            });
+            ->whereIn('santris.gender', ['putra', 'putri']);
 
         if ($kategori !== 'all') {
             $recordsQuery->where('kegiatans.kategori', $kategori);
@@ -461,18 +485,20 @@ class PresensiController extends Controller
             });
         }
 
-        $buildSummary = function (string $gender) use ($recordsQuery): array {
-            $summary = (clone $recordsQuery)
-                ->where('santris.gender', $gender)
-                ->selectRaw('COUNT(*) as total_input')
-                ->selectRaw('COUNT(DISTINCT presensis.santri_id) as total_santri')
-                ->selectRaw('COUNT(DISTINCT presensis.sesi_id) as total_sesi')
-                ->selectRaw("SUM(CASE WHEN presensis.status = 'hadir' THEN 1 ELSE 0 END) as hadir")
-                ->selectRaw("SUM(CASE WHEN presensis.status = 'izin' THEN 1 ELSE 0 END) as izin")
-                ->selectRaw("SUM(CASE WHEN presensis.status = 'sakit' THEN 1 ELSE 0 END) as sakit")
-                ->selectRaw("SUM(CASE WHEN presensis.status = 'alpha' THEN 1 ELSE 0 END) as alpha")
-                ->first();
+        $summariesByGender = (clone $recordsQuery)
+            ->selectRaw('santris.gender as gender')
+            ->selectRaw('COUNT(*) as total_input')
+            ->selectRaw('COUNT(DISTINCT presensis.santri_id) as total_santri')
+            ->selectRaw('COUNT(DISTINCT presensis.sesi_id) as total_sesi')
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'hadir' THEN 1 ELSE 0 END) as hadir")
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'izin' THEN 1 ELSE 0 END) as izin")
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'sakit' THEN 1 ELSE 0 END) as sakit")
+            ->selectRaw("SUM(CASE WHEN presensis.status = 'alpha' THEN 1 ELSE 0 END) as alpha")
+            ->groupBy('santris.gender')
+            ->get()
+            ->keyBy(fn ($row) => (string) $row->gender);
 
+        $normalizeSummary = function ($summary): array {
             $totalInput = (int) ($summary?->total_input ?? 0);
             $hadir = (int) ($summary?->hadir ?? 0);
 
@@ -488,8 +514,8 @@ class PresensiController extends Controller
             ];
         };
 
-        $putraSummary = $buildSummary('putra');
-        $putriSummary = $buildSummary('putri');
+        $putraSummary = $normalizeSummary($summariesByGender->get('putra'));
+        $putriSummary = $normalizeSummary($summariesByGender->get('putri'));
 
         $activeRows = (clone $recordsQuery)
             ->where('santris.gender', $activeTab)

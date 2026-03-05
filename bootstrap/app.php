@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\LoadUserRelations;
+use App\Http\Middleware\ProfileSqlPerEndpoint;
 use App\Http\Middleware\RoleMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -16,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
             LoadUserRelations::class,
+            ProfileSqlPerEndpoint::class,
+        ]);
+
+        $middleware->api(append: [
+            ProfileSqlPerEndpoint::class,
         ]);
 
         $middleware->alias([

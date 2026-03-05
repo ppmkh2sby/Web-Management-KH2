@@ -1,6 +1,6 @@
 @extends('layouts.santri-modern')
 @section('title', 'Rekap Presensi KTB')
-@section('content_panel_class', 'h-[calc(100vh-40px)] overflow-y-auto')
+@section('content_panel_class', 'h-[calc(100vh-40px)] overflow-y-auto md:overflow-hidden')
 
 @section('content')
 <style>
@@ -10,6 +10,7 @@
       min-height: 0;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
     .rekap-header {
@@ -88,7 +89,7 @@
     </div>
   </div>
 
-  <div id="rekap-layout-container">
+  <div id="rekap-layout-container" class="flex-1 min-h-0 overflow-hidden flex flex-col">
     @include('santri.presensi.partials.rekap-layout', [
       'bulanInput' => $bulanInput,
       'activeTab' => $activeTab,

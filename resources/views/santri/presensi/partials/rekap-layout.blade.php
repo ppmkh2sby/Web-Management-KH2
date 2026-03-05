@@ -26,7 +26,7 @@
         <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
           <div class="flex items-center justify-between gap-2">
             <p class="text-xs font-semibold text-gray-900">Ringkasan {{ $activeLabel }}</p>
-            <span class="rekap-summary-chip border-emerald-200 bg-emerald-50 text-emerald-700">{{ $activeSummary['persentase'] }}% hadir</span>
+            
           </div>
           <div class="mt-1.5 grid grid-cols-4 gap-1.5">
             <div class="rounded-lg border border-slate-200 bg-white px-2 py-1.5">
@@ -42,7 +42,7 @@
               <p class="text-sm font-semibold text-gray-900 leading-5">{{ $activeSummary['total_input'] }}</p>
             </div>
             <div class="rounded-lg border border-slate-200 bg-white px-2 py-1.5">
-              <p class="text-[10px] leading-3 text-gray-500">% Hadir</p>
+              <p class="text-[10px] leading-3 text-gray-500">Hadir</p>
               <p class="text-sm font-semibold text-emerald-700 leading-5">{{ $activeSummary['persentase'] }}%</p>
             </div>
           </div>

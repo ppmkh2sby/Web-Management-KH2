@@ -297,36 +297,42 @@
           @endif
 
           <div class="flex gap-1">
-            @php
-              $current = $presensis->currentPage();
-              $last = $presensis->lastPage();
-              $start = max(1, $current - 2);
-              $end = min($last, $current + 2);
-            @endphp
+            @if(method_exists($presensis, 'lastPage'))
+              @php
+                $current = $presensis->currentPage();
+                $last = $presensis->lastPage();
+                $start = max(1, $current - 2);
+                $end = min($last, $current + 2);
+              @endphp
 
-            @if($start > 1)
-              <a href="{{ $presensis->url(1) }}" class="rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-gray-600 hover:bg-gray-50">
-                1
-              </a>
-              @if($start > 2)
-                <span class="px-2 py-1.5 text-[10px] text-gray-400">...</span>
+              @if($start > 1)
+                <a href="{{ $presensis->url(1) }}" class="rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-gray-600 hover:bg-gray-50">
+                  1
+                </a>
+                @if($start > 2)
+                  <span class="px-2 py-1.5 text-[10px] text-gray-400">...</span>
+                @endif
               @endif
-            @endif
 
-            @foreach(range($start, $end) as $page)
-              <a href="{{ $presensis->url($page) }}" 
-                 class="rounded-lg px-2.5 py-1.5 text-[10px] font-medium {{ $current === $page ? 'bg-emerald-100 text-emerald-700' : 'text-gray-600 hover:bg-gray-50' }}">
-                {{ $page }}
-              </a>
-            @endforeach
+              @foreach(range($start, $end) as $page)
+                <a href="{{ $presensis->url($page) }}" 
+                  class="rounded-lg px-2.5 py-1.5 text-[10px] font-medium {{ $current === $page ? 'bg-emerald-100 text-emerald-700' : 'text-gray-600 hover:bg-gray-50' }}">
+                  {{ $page }}
+                </a>
+              @endforeach
 
-            @if($end < $last)
-              @if($end < $last - 1)
-                <span class="px-2 py-1.5 text-[10px] text-gray-400">...</span>
+              @if($end < $last)
+                @if($end < $last - 1)
+                  <span class="px-2 py-1.5 text-[10px] text-gray-400">...</span>
+                @endif
+                <a href="{{ $presensis->url($last) }}" class="rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-gray-600 hover:bg-gray-50">
+                  {{ $last }}
+                </a>
               @endif
-              <a href="{{ $presensis->url($last) }}" class="rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-gray-600 hover:bg-gray-50">
-                {{ $last }}
-              </a>
+            @else
+              <span class="inline-flex items-center rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-gray-600">
+                Halaman {{ $presensis->currentPage() }}
+              </span>
             @endif
           </div>
 

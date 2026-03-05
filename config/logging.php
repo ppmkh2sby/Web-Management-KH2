@@ -73,6 +73,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'sql_profile' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/sql-profile.log'),
+            'level' => env('SQL_PROFILE_LOG_LEVEL', 'info'),
+            'days' => env('SQL_PROFILE_LOG_DAILY_DAYS', 7),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
