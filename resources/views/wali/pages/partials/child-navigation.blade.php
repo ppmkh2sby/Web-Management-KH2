@@ -11,7 +11,7 @@
     $switchRoute = in_array($currentRoute, $validRoutes, true) ? $currentRoute : 'wali.anak.overview';
 @endphp
 
-<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+<div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <p class="text-xs font-medium uppercase tracking-[0.16em] text-emerald-600">Sedang dipantau</p>
@@ -22,17 +22,17 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('profile.edit') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('profile.edit') }}" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:text-sm">
                 <i data-lucide="user-cog" class="w-4 h-4"></i> Profil Wali
             </a>
         </div>
     </div>
 
-    <div class="mt-4 flex flex-wrap gap-2 text-sm">
+    <div class="mt-4 flex gap-2 overflow-x-auto pb-1 text-sm whitespace-nowrap">
         @foreach($tabs as $tab)
             @php $isActive = request()->routeIs($tab['route']); @endphp
             <a href="{{ $code ? route($tab['route'], $code) : '#' }}"
-               class="inline-flex items-center gap-2 rounded-full border px-4 py-2 {{ $isActive ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }} {{ $code ? '' : 'opacity-50 cursor-not-allowed pointer-events-none' }}">
+               class="shrink-0 inline-flex items-center gap-2 rounded-full border px-4 py-2 {{ $isActive ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }} {{ $code ? '' : 'opacity-50 cursor-not-allowed pointer-events-none' }}">
                 {{ $tab['label'] }}
             </a>
         @endforeach

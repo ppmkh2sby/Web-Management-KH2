@@ -29,17 +29,23 @@
 
         html,
         body {
-            height: 100%;
-            overflow: hidden;
+            min-height: 100%;
         }
 
         body {
             font-family: "Plus Jakarta Sans", sans-serif;
             color: var(--ink);
+            overflow-x: hidden;
             background:
                 radial-gradient(circle at 0% 0%, rgba(15, 154, 141, 0.2), transparent 35%),
                 radial-gradient(circle at 100% 100%, rgba(255, 196, 95, 0.14), transparent 32%),
                 var(--bg);
+        }
+
+        @media (min-width: 1024px) {
+            body {
+                overflow: hidden;
+            }
         }
 
         .display-font {
@@ -102,12 +108,12 @@
         }
     </style>
 </head>
-<body class="h-[100dvh] overflow-hidden antialiased">
-    <main class="relative mx-auto flex h-[100dvh] w-full max-w-6xl items-center px-4 py-3 sm:px-6 lg:px-8">
+<body class="min-h-[100dvh] overflow-x-hidden antialiased">
+    <main class="relative mx-auto flex min-h-[100dvh] w-full max-w-6xl items-stretch px-4 py-4 sm:px-6 lg:items-center lg:px-8">
         <div class="pointer-events-none absolute -left-14 top-14 h-36 w-36 rounded-full bg-emerald-300/40 blur-3xl"></div>
         <div class="pointer-events-none absolute -right-14 bottom-8 h-40 w-40 rounded-full bg-amber-200/40 blur-3xl"></div>
 
-        <div class="auth-stage fade-in relative z-10 grid h-[min(740px,94dvh)] w-full overflow-hidden rounded-[28px] lg:grid-cols-[1.05fr_0.95fr]">
+        <div class="auth-stage fade-in relative z-10 grid w-full overflow-hidden rounded-[24px] lg:h-[min(740px,94dvh)] lg:rounded-[28px] lg:grid-cols-[1.05fr_0.95fr]">
             <section class="brand-panel relative hidden h-full flex-col justify-between p-10 text-white lg:flex">
                 <div>
                     <a data-direct-nav href="{{ route('landing') }}" class="inline-flex items-center text-sm font-semibold text-white/80 transition hover:text-white">
@@ -127,8 +133,8 @@
                 </div>
             </section>
 
-            <section class="flex h-full items-center bg-white/86 px-5 py-6 sm:px-8 lg:px-10">
-                <div class="mx-auto w-full max-w-md">
+            <section class="flex h-full items-start bg-white/86 px-5 py-6 sm:px-8 lg:items-center lg:px-10">
+                <div class="mx-auto w-full max-w-md pb-1 lg:pb-0">
                     <a data-direct-nav href="{{ route('landing') }}" class="inline-flex items-center text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-soft)] transition hover:text-[var(--accent)] lg:hidden">
                         <span aria-hidden="true">&larr;</span>
                         <span class="ml-2">Kembali</span>

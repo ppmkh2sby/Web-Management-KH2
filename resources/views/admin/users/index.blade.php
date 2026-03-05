@@ -3,7 +3,7 @@
         <h2 class="font-semibold text-xl">Users</h2>
     </x-slot>
 
-    <div class="p-6 space-y-4">
+    <div class="p-4 space-y-4 sm:p-6">
         {{-- Bar filter per role --}}
         <div class="flex flex-wrap gap-2">
             @php
@@ -30,17 +30,18 @@
         </div>
 
         {{-- Pencarian --}}
-        <form method="GET" action="{{ route('admin.users.index') }}" class="flex gap-2">
+        <form method="GET" action="{{ route('admin.users.index') }}" class="flex flex-col gap-2 sm:flex-row">
             <input type="hidden" name="role" value="{{ $role }}">
             <x-text-input name="q" value="{{ $q }}" placeholder="Cari nama / email / no HP" class="w-full"/>
             <x-primary-button>Cari</x-primary-button>
             @if($q || $role)
-                <a href="{{ route('admin.users.index') }}" class="px-3 py-2 border rounded">Reset</a>
+                <a href="{{ route('admin.users.index') }}" class="inline-flex items-center justify-center px-3 py-2 border rounded">Reset</a>
             @endif
         </form>
 
         {{-- Tabel --}}
         <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="min-w-full divide-y">
                 <thead class="bg-slate-50">
                     <tr>
@@ -84,6 +85,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
 
         <div>{{ $users->links() }}</div>

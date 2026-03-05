@@ -120,7 +120,7 @@
         $genderSwitchQuery = request()->query();
         unset($genderSwitchQuery['page']);
       @endphp
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
         <div>
           <h1 class="text-[20px] font-semibold text-gray-900">Kehadiran Santri</h1>
           <p class="text-[10px] text-gray-600 mt-0.5">Lorem ipsum dolor sit amet, consectetur. Volutpat tellus facilisi nulla commodo non libero quis.</p>
@@ -133,14 +133,14 @@
             @endforeach
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="relative">
+        <div class="flex w-full flex-wrap items-center gap-2 lg:w-auto">
+          <div class="relative w-full sm:w-auto">
             <form id="team-search-form" method="GET" action="{{ route('santri.presensi.index') }}">
               <input type="hidden" name="mode" value="{{ $mode }}" />
               <input type="hidden" name="gender_filter" value="{{ $genderFilter ?? 'all' }}" />
               <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
               <input id="search-input" name="search" value="{{ $search }}" placeholder="Cari santri" 
-                     class="rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-2 text-sm placeholder:text-gray-400 focus:ring-1 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all w-72" />
+                     class="rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-2 text-sm placeholder:text-gray-400 focus:ring-1 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all w-full sm:w-72" />
             </form>
           </div>
           @if($canTeamFilter ?? false)
@@ -369,7 +369,7 @@
     </div>
 
     {{-- Stats Cards --}}
-    <div class="grid grid-cols-6 gap-3">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
       {{-- Total Sesi --}}
       <div class="bg-white border border-gray-200 rounded-xl px-4 py-3.5 shadow-sm">
         <p class="text-xs font-medium text-gray-600 leading-tight">Total Sesi</p>
@@ -408,22 +408,22 @@
     </div>
 
     {{-- Main Content Grid --}}
-    <div class="grid grid-cols-[1fr_375px] gap-4">
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_375px]">
       {{-- Table Section --}}
       <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         {{-- Table Header with Filters --}}
         <div class="border-b border-gray-200 px-4 py-3.5">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 class="text-base font-semibold text-gray-900 leading-6">Riwayat Keseluruhan Kehadiran</h2>
             </div>
-            <div class="flex items-center gap-2">
-              <div class="relative">
+            <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <div class="relative w-full sm:w-auto">
                 <form method="GET" action="{{ route('santri.presensi.index') }}">
                   <input type="hidden" name="mode" value="mine" />
                   <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
                   <input id="search-input-mine" name="search" value="{{ $search }}" placeholder="Cari..."
-                         class="rounded-lg border border-gray-200 bg-white pl-8 pr-2.5 py-1.5 text-xs placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 w-56" />
+                         class="rounded-lg border border-gray-200 bg-white pl-8 pr-2.5 py-1.5 text-xs placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 w-full sm:w-56" />
                 </form>
               </div>
               <button type="button" id="filter-button-mine"

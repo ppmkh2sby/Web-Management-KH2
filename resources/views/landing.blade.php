@@ -108,6 +108,12 @@
                 transform: translateY(0);
             }
         }
+
+        @media (max-width: 767.98px) {
+            .hero-float-card {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen antialiased">
@@ -153,7 +159,7 @@
     </header>
 
     <main class="pt-20" id="home">
-        <section class="mx-auto grid w-full max-w-7xl gap-12 px-5 py-14 sm:px-8 md:grid-cols-2 md:items-center md:py-20">
+        <section class="mx-auto grid w-full max-w-7xl gap-8 px-5 py-10 sm:px-8 sm:py-14 md:grid-cols-2 md:items-center md:gap-12 md:py-20">
             <div class="reveal">
                 <span class="inline-flex items-center rounded-full border border-[var(--ring)] bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-[0.25em] text-[var(--accent)]">
                     Platform Digitalisasi KH2
@@ -191,18 +197,18 @@
                 </div>
             </div>
 
-            <div class="absolute left-0 bottom-[30px] h-full w-full md:relative">
+            <div class="relative h-full w-full">
                 <div class="hero-visual relative overflow-hidden rounded-3xl border border-[var(--ring)] bg-white p-3 shadow-xl shadow-black/10">
-                    <img src="{{ asset('assets/images/foto_bersama.JPG') }}" alt="Foto kegiatan KH2" class="h-[430px] w-full rounded-2xl object-cover sm:h-[500px]">
+                    <img src="{{ asset('assets/images/foto_bersama.JPG') }}" alt="Foto kegiatan KH2" class="h-[320px] w-full rounded-2xl object-cover sm:h-[430px] md:h-[500px]">
                     <div class="pointer-events-none absolute inset-3 rounded-2xl bg-gradient-to-t from-[#132328]/40 via-transparent to-transparent"></div>
                 </div>
 
-                <div class="float-slow glass-card absolute -left-2 top-3 w-40 rounded-2xl p-4 sm:-left-8 sm:w-44">
+                <div class="hero-float-card float-slow glass-card absolute -left-2 top-3 w-40 rounded-2xl p-4 sm:-left-8 sm:w-44">
                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">Presensi</p>
                     <p class="mt-2 text-sm font-bold text-[var(--ink)]">Rekap harian realtime</p>
                 </div>
 
-                <div class="float-delay glass-card absolute bottom-[50px] right-0 w-44 rounded-2xl p-4 sm:-right-6 sm:w-52">
+                <div class="hero-float-card float-delay glass-card absolute bottom-[50px] right-0 w-44 rounded-2xl p-4 sm:-right-6 sm:w-52">
                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">Progres</p>
                     <p class="mt-2 text-sm font-bold text-[var(--ink)]">Pantau perkembangan setiap santri</p>
                 </div>
@@ -329,7 +335,7 @@
                             <img
                                 src="{{ $item['images'][0] }}"
                                 alt="{{ $item['title'] }}"
-                                class="h-52 w-full object-cover opacity-100 transition-opacity duration-700 ease-in-out"
+                                class="w-full h-auto max-h-[28rem] object-contain bg-slate-100 opacity-100 transition-opacity duration-700 ease-in-out"
                                 data-gallery-rotator
                                 data-images='@json($item['images'])'
                             >

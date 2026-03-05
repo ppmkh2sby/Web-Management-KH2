@@ -168,13 +168,13 @@
 
         <div class="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
           {{-- Card header --}}
-          <div class="flex items-center justify-between gap-3 px-3 pt-2.5 pb-1.5">
+          <div class="flex flex-col gap-2.5 px-3 pt-2.5 pb-1.5 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex-shrink-0">
               <h3 class="text-sm font-semibold leading-5 text-gray-900">{{ $materiHeaderTitle }}</h3>
             </div>
 
-            <div class="flex items-center gap-2.5 flex-shrink-0">
-              <div class="relative w-44">
+            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2.5">
+              <div class="relative w-full sm:w-44">
                 <i data-lucide="search"
                    class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500"></i>
                 <input type="search"
@@ -186,7 +186,7 @@
               </div>
 
               <button type="submit"
-                      class="inline-flex h-8 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm border-2 border-white/[0.12] whitespace-nowrap">
+                      class="inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm border-2 border-white/[0.12] whitespace-nowrap sm:w-auto">
                 <i data-lucide="save" class="w-3.5 h-3.5"></i>
                 Simpan Progress
               </button>
@@ -194,7 +194,7 @@
           </div>
 
           <div class="h-px bg-gray-200 mt-2.5"></div>
-        <div class="grid grid-cols-[165px_145px_1fr] items-center bg-gray-50 px-3 py-1.5 text-[10px] font-semibold uppercase text-gray-600 border-b border-gray-200">
+        <div class="grid grid-cols-[95px_minmax(0,1fr)_58px] items-center bg-gray-50 px-3 py-1.5 text-[10px] font-semibold uppercase text-gray-600 border-b border-gray-200 sm:grid-cols-[145px_170px_1fr] lg:grid-cols-[165px_145px_1fr]">
           <div class="flex items-center gap-0.5">
             {{ $category === 'al-quran' ? 'Juz' : 'Hadits' }}
             <i data-lucide="chevrons-up-down" class="w-2.5 h-2.5 text-gray-500"></i>
@@ -232,14 +232,14 @@
                 $barColor = $percent > 0 ? 'bg-emerald-600' : 'bg-gray-300';
               @endphp
 
-              <div class="grid grid-cols-[165px_145px_1fr] items-center px-3.5 py-2 border-b border-gray-200 hover:bg-gray-50" data-searchable="{{ $title }}">
+              <div class="grid grid-cols-[95px_minmax(0,1fr)_58px] items-center px-3 py-2 border-b border-gray-200 hover:bg-gray-50 sm:grid-cols-[145px_170px_1fr] sm:px-3.5 lg:grid-cols-[165px_145px_1fr]" data-searchable="{{ $title }}">
                 {{-- Title --}}
-                <div class="font-medium text-[11px] leading-4 text-gray-900">
+                <div class="pr-2 font-medium text-[11px] leading-4 text-gray-900 sm:pr-0">
                   {{ $title }}
                 </div>
 
                 {{-- Input --}}
-                <div class="pr-2.5">
+                <div class="pr-1 sm:pr-2.5">
                   <input
                     type="number"
                     name="modules[{{ $index }}][value]"
@@ -257,8 +257,8 @@
                 </div>
 
                 {{-- Progress Bar + Percent --}}
-                <div class="flex items-center gap-2 pr-3">
-                  <div class="flex-1 h-1 rounded-full bg-gray-200">
+                <div class="flex items-center justify-end gap-2 pr-0.5 sm:pr-3">
+                  <div class="hidden h-1 flex-1 rounded-full bg-gray-200 sm:block">
                     <div class="h-full rounded-full {{ $barColor }} transition-all duration-300" style="width: {{ $percent }}%"></div>
                   </div>
                   <div class="text-[11px] font-medium leading-4 text-gray-700 whitespace-nowrap min-w-[30px] text-right">
@@ -272,7 +272,7 @@
 
         {{-- Pagination --}}
         @if($pages->count() > 1)
-          <div x-show="!isSearching" class="flex items-center justify-between border-t border-gray-200 bg-white px-2.5 py-1.5">
+          <div x-show="!isSearching" class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 bg-white px-2.5 py-1.5">
             {{-- Previous Button --}}
             <button type="button"
                     @click="if(page > 1) page -= 1"
@@ -283,7 +283,7 @@
             </button>
 
             {{-- Page Numbers --}}
-            <div class="flex items-center gap-0.5">
+            <div class="flex max-w-[46vw] items-center gap-0.5 overflow-x-auto sm:max-w-none">
               @php $totalPages = $pages->count(); @endphp
 
               {{-- Page numbers like: 1 2 3 ... 8 9 10 --}}

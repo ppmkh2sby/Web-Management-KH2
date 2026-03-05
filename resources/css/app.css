@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+}
+
+@layer components {
+    @media (max-width: 767.98px) {
+        [class*="grid-cols-5"],
+        [class*="grid-cols-6"] {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .overflow-x-auto {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+
+        .overflow-x-auto > table {
+            min-width: 620px;
+        }
+
+        .overflow-x-auto > table th,
+        .overflow-x-auto > table td {
+            white-space: nowrap;
+        }
+    }
+}

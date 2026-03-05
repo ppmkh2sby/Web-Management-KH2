@@ -117,7 +117,6 @@
           <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
             <tr>
               <th class="px-3 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wide">Nama</th>
-              <th class="px-3 py-3 text-left text-[11px] font-semibold text-gray-600 uppercase tracking-wide">Tim</th>
               <th class="px-3 py-3 text-right text-[11px] font-semibold text-gray-600 uppercase tracking-wide">Total</th>
               <th class="px-3 py-3 text-right text-[11px] font-semibold text-gray-600 uppercase tracking-wide">H</th>
               <th class="px-3 py-3 text-right text-[11px] font-semibold text-gray-600 uppercase tracking-wide">I</th>
@@ -130,7 +129,6 @@
             @forelse($activeRows as $row)
               <tr class="hover:bg-gray-50">
                 <td class="px-3 py-3 text-xs font-semibold text-gray-900">{{ $row['nama_lengkap'] }}</td>
-                <td class="px-3 py-3 text-xs text-gray-600">{{ $row['tim'] }}</td>
                 <td class="px-3 py-3 text-xs text-right text-gray-700">{{ $row['total_input'] }}</td>
                 <td class="px-3 py-3 text-xs text-right text-emerald-700 font-medium">{{ $row['hadir'] }}</td>
                 <td class="px-3 py-3 text-xs text-right text-blue-700 font-medium">{{ $row['izin'] }}</td>
@@ -140,7 +138,7 @@
               </tr>
             @empty
               <tr>
-                <td colspan="8" class="px-3 py-10 text-center text-xs text-gray-500">Belum ada data presensi untuk filter ini.</td>
+                <td colspan="7" class="px-3 py-10 text-center text-xs text-gray-500">Belum ada data presensi untuk filter ini.</td>
               </tr>
             @endforelse
           </tbody>

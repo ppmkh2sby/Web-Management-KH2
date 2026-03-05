@@ -23,7 +23,7 @@
             {{ $slot }}
         </main>
         <footer class="mt-16 border-t bg-white">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-sm text-slate-500">&copy; {{ now()->year }} {{ config('app.name', 'Management KH2') }}</p>
                 <div class="text-sm text-slate-500">
                     <a href="{{ url('/') }}" class="hover:text-slate-700">Beranda</a>

@@ -200,15 +200,15 @@
                         type="button"
                         @click="setCategory('al-hadits')"
                         :class="activeCategory === 'al-hadits' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'"
-                        class="rounded-lg {{ $isStaffCompact ? 'px-3 py-2 text-[12sepx]' : 'px-3 py-1.5 text-sm' }} font-semibold transition"
+                        class="rounded-lg {{ $isStaffCompact ? 'px-3 py-2 text-[12px]' : 'px-3 py-1.5 text-sm' }} font-semibold transition"
                     >
                         Hadits
                     </button>
                 </div>
             </div>
 
-            <div class="{{ $isStaffCompact ? 'mt-5 overflow-hidden' : 'mt-5 flex-1 overflow-hidden' }} rounded-xl border border-gray-200 bg-white">
-                <div class="grid grid-cols-[minmax(120px,165px)_minmax(145px,170px)_1fr] items-center border-b border-gray-200 bg-gray-50 px-4 {{ $isStaffCompact ? 'py-1.5' : 'py-2' }} text-[10px] font-semibold uppercase text-gray-600">
+            <div class="{{ $isStaffCompact ? 'mt-5 overflow-x-auto' : 'mt-5 flex-1 overflow-x-auto' }} rounded-xl border border-gray-200 bg-white">
+                <div class="min-w-[560px] grid grid-cols-[minmax(120px,165px)_minmax(145px,170px)_1fr] items-center border-b border-gray-200 bg-gray-50 px-4 {{ $isStaffCompact ? 'py-1.5' : 'py-2' }} text-[10px] font-semibold uppercase text-gray-600">
                     <div class="flex items-center gap-1">
                         <span x-text="activeCategory === 'al-hadits' ? 'Hadits' : 'Juz'"></span>
                         <i data-lucide="chevrons-up-down" class="h-3 w-3 text-gray-500"></i>
@@ -231,7 +231,7 @@
                             class="divide-y divide-gray-200"
                         >
                             @foreach($pageItems as $entry)
-                                <div class="grid grid-cols-[minmax(120px,165px)_minmax(145px,170px)_1fr] items-center gap-3 px-4 {{ $isStaffCompact ? 'py-1.5' : 'py-3' }} hover:bg-gray-50/80">
+                                <div class="min-w-[560px] grid grid-cols-[minmax(120px,165px)_minmax(145px,170px)_1fr] items-center gap-3 px-4 {{ $isStaffCompact ? 'py-1.5' : 'py-3' }} hover:bg-gray-50/80">
                                     <p class="truncate {{ $isStaffCompact ? 'text-[13px]' : 'text-sm' }} font-medium text-gray-900">{{ $entry['judul'] }}</p>
                                     <p class="inline-flex items-baseline gap-1 {{ $isStaffCompact ? 'text-[13px]' : 'text-sm' }} font-semibold text-gray-800 tabular-nums">
                                         <span class="inline-block w-[3ch] text-right">{{ $entry['capaian'] }}</span>
@@ -256,7 +256,7 @@
                             class="divide-y divide-gray-200"
                         >
                             @foreach($pageItems as $entry)
-                                <div class="grid grid-cols-[minmax(120px,165px)_minmax(145px,170px)_1fr] items-center gap-3 px-4 {{ $isStaffCompact ? 'py-1.5' : 'py-3' }} hover:bg-gray-50/80">
+                                <div class="min-w-[560px] grid grid-cols-[minmax(120px,165px)_minmax(145px,170px)_1fr] items-center gap-3 px-4 {{ $isStaffCompact ? 'py-1.5' : 'py-3' }} hover:bg-gray-50/80">
                                     <p class="truncate {{ $isStaffCompact ? 'text-[13px]' : 'text-sm' }} font-medium text-gray-900">{{ $entry['judul'] }}</p>
                                     <p class="inline-flex items-baseline gap-1 {{ $isStaffCompact ? 'text-[13px]' : 'text-sm' }} font-semibold text-gray-800 tabular-nums">
                                         <span class="inline-block w-[3ch] text-right">{{ $entry['capaian'] }}</span>
