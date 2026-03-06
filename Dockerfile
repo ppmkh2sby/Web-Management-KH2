@@ -1,29 +1,49 @@
-FROM php:8.2-fpm
+FROM php:8.2-cli
 
+# Install system dependencies + tools for Coolify healthcheck
 RUN apt-get update && apt-get install -y \
     git \
     curl \
-    zip \
+    wget \
     unzip \
+    zip \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libzip-dev \
     nodejs \
-    npm
+    npm \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
+# Copy dependency manifests first for better cache usage
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+COPY package.json package-lock.json ./
+RUN npm install
+
+# Copy application source
 COPY . .
 
-RUN curl -sS https://getcomposer.org/installer | php \
-    && mv composer.phar /usr/local/bin/composer
+# Build frontend assets
+RUN npm run build
 
-RUN composer install --no-dev --optimize-autoloader
+# Laravel permissions
+RUN mkdir -p storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache \
+    && chown -R www-data:www-data /var/www \
+    && chmod -R 775 storage bootstrap/cache
 
-RUN npm install && npm run build
+EXPOSE 8000
 
-RUN chown -R www-data:www-data storage bootstrap/cache
-
-CMD php artisan serve --host=0.0.0.0 --port=8000
+CMD ["sh", "-c", "php artisan config:clear && php artisan route:clear && php artisan view:clear && php artisan key:generate --force && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
