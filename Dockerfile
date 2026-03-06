@@ -48,6 +48,7 @@ RUN composer install \
     --no-dev \
     --prefer-dist \
     --no-interaction \
+    --no-scripts \
     --optimize-autoloader
 
 COPY . .
@@ -59,10 +60,10 @@ RUN mkdir -p storage/framework/cache \
     storage/framework/views \
     storage/logs \
     bootstrap/cache \
-    database \
-    && touch database/database.sqlite \
     && chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 storage bootstrap/cache database
+    && chmod -R 775 storage bootstrap/cache
+
+RUN php artisan package:discover --ansi || true
 
 EXPOSE 8000
 
